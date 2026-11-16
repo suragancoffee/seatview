@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 자리 미리보기 · 올림픽공원 공연장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{ --navy:#0b2a5b; --blue:#1d5fd1; --orange:#f28c18; --bg:#f4f6fa; --line:#dfe4ee; --ink:#162033; --muted:#6b7487; --seat:#c8d3ea; --seat-h:#9fb3dc; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  .app{display:grid;grid-template-columns:390px 1fr;height:100vh}
+  aside{background:#fff;border-right:1px solid var(--line);overflow:auto;padding:20px 22px 16px;display:flex;flex-direction:column;gap:16px}
+  .brand small{color:var(--blue);font-weight:700;font-size:12px}
+  .brand h1{margin:2px 0 0;font-size:22px;font-weight:900;color:var(--navy);letter-spacing:-.02em}
+  .brand p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+  .venues{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .venues button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:9px 6px;font:inherit;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer;text-align:left;line-height:1.3}
+  .venues button small{display:block;font-weight:500;font-size:11px}
+  .venues button.on{border-color:var(--navy);color:var(--navy);background:#eef3fc}
+  .tag{font-style:normal;font-size:10px;background:#e7ebf3;color:#55607a;border-radius:4px;padding:1px 5px;margin-left:3px;vertical-align:1px}
+  .note2d{background:#eef3fc;color:#294a85;border-radius:8px;padding:9px 11px;font-size:12px;line-height:1.55}
+  #view2d{position:absolute;inset:0;background:#f4f6fa;display:grid;grid-template-rows:1fr auto;overflow:auto}
+  #view2d .mapwrap{padding:16px 16px 4px;min-height:0}
+  #view2d svg.seatmap{width:100%;height:100%;max-height:calc(100vh - 360px);display:block}
+  .seatmap .zp{fill:#c8d3ea;stroke:#fff;stroke-width:3;cursor:pointer} .seatmap .zp:hover{fill:#9fb3dc} .seatmap .zp.sel{fill:#f28c18}
+  .seatmap .st{fill:#0b2a5b} .seatmap text{font-family:inherit;font-weight:700;fill:#2a3a5c;pointer-events:none}
+  .seatmap .seat{fill:#fff;stroke:#7d8aa6;stroke-width:2;cursor:pointer} .seatmap .seat.tmp{fill:#f1f3f8;stroke-dasharray:6 4} .seatmap .seat:hover{fill:#c8d3ea} .seatmap .seat.sel{fill:#f28c18;stroke:#b35f00}
+  .sk{display:flex;gap:14px;align-items:center;padding:8px 16px 16px;flex-wrap:wrap}
+  .sk svg{width:min(560px,100%);aspect-ratio:16/9;border-radius:12px;background:#11141b;display:block}
+  .sk p{margin:0;font-size:12px;color:#6b7487;max-width:300px;line-height:1.6}
+  .tabs{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:10px}
+  .tabs button{flex:1;border:0;background:transparent;padding:8px 0;border-radius:7px;font:inherit;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
+  .tabs button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .map{background:var(--bg);border-radius:12px;padding:12px 10px 10px}
+  .stage{background:var(--navy);color:#fff;text-align:center;font-weight:700;font-size:12px;border-radius:6px;padding:7px 0;margin:0 18% 10px;letter-spacing:.3em}
+  .zones{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:8px}
+  .zone h4{margin:0 0 5px;text-align:center;font-size:12px;color:var(--navy)}
+  .rows{display:flex;flex-direction:column;gap:2px}
+  .row{height:9px;border-radius:3px;background:var(--seat);cursor:pointer;border:0;padding:0}
+  .row:hover{background:var(--seat-h)} .row.sel{background:var(--orange)}
+  .aisle{height:6px;margin:3px 0;border-top:2px dashed #b9c2d6}
+  .zone.wing .row{margin:0 6px}
+  .legend{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:8px}
+  svg.ring{width:100%;height:auto;display:block}
+  svg.ring path.z{fill:var(--seat);stroke:#fff;stroke-width:1;cursor:pointer}
+  svg.ring path.z:hover{fill:var(--seat-h)} svg.ring path.z.sel{fill:var(--orange)}
+  svg.ring path.z.behind{fill:#eef0f4;stroke:#d5d9e2;stroke-dasharray:2 2}
+  svg.ring text{font-size:9px;fill:#40506e;pointer-events:none;font-weight:700}
+  svg.ring .floor{fill:#e8ecf4;cursor:pointer} svg.ring .floor.sel{fill:#ffd9ad}
+  svg.ring .stg{fill:var(--navy)}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:7px 0;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+  .seg button.on{border-color:var(--orange);color:#b35f00;background:#fff4e6}
+  select{width:100%;font:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1.5px solid var(--line);background:#fff;color:var(--ink)}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field>label{font-size:12px;color:var(--muted);font-weight:500;display:flex;justify-content:space-between}
+  .field>label b{color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--blue)}
+  .card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  .card .seatname{grid-column:1/-1;font-size:18px;font-weight:900;color:var(--navy)}
+  .stat small{display:block;color:var(--muted);font-size:11px} .stat b{font-size:16px}
+  .warn{grid-column:1/-1;background:#fff4e6;color:#9a5200;border-radius:8px;padding:7px 10px;font-size:12px;display:none}
+  .toggles{font-size:13px} .toggles label{display:flex;align-items:center;gap:8px;cursor:pointer}
+  .src{margin-top:auto;font-size:11px;color:var(--muted);line-height:1.6;border-top:1px solid var(--line);padding-top:12px}
+  main{position:relative;overflow:hidden;background:#1b1f27}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab} canvas:active{cursor:grabbing}
+  .hud{position:absolute;left:16px;top:16px;background:rgba(11,42,91,.88);color:#fff;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.45;pointer-events:none;max-width:70%}
+  .hud b{font-size:16px}
+  .ctrl{position:absolute;right:16px;bottom:16px;display:flex;gap:8px}
+  .ctrl button{border:0;background:#fff;color:var(--navy);font:inherit;font-weight:700;font-size:13px;border-radius:9px;padding:9px 13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .ctrl button.on{background:var(--orange);color:#fff}
+  .hint{position:absolute;left:16px;bottom:16px;color:#c9d2e3;font-size:12px;pointer-events:none}
+  .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;background:#1b1f27;z-index:5;transition:opacity .4s}
+  .loading.hide{opacity:0;pointer-events:none}
+  .bar{width:240px;height:6px;border-radius:3px;background:#39404f;overflow:hidden} .bar i{display:block;height:100%;width:0;background:var(--orange);transition:width .2s}
+  [hidden]{display:none!important}
+  @media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:52vh auto;height:auto} main{order:-1;height:52vh} aside{border-right:0} .hint{display:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <small>KSPO 공공데이터 활용 · 실감형 콘텐츠</small>
+      <h1>내 자리 미리보기</h1>
+      <p>올림픽공원 공연장 3D 모델로, 예매 전에 내 좌석에서 무대가 어떻게 보이는지 확인하세요.</p>
+    </div>
+
+    <div class="venues" id="venues">
+      <button data-v="woori" class="on">우리금융아트홀<small>1,185석 · 공연장형</small></button>
+      <button data-v="kspo" title="52개 구역 13,948석 + 휠체어석 82 + BOX석 121">KSPO DOME<small>14,151석 · 아레나형</small></button>
+      <button data-v="hb">티켓링크 라이브 아레나<small>5,003석 · 핸드볼경기장</small></button>
+      <button data-v="lake">수변무대<small>야외 · 계단식 객석</small></button>
+      <button data-v="g88">88잔디마당<small>야외 · 잔디 관람</small></button>
+      <button data-v="oh">올림픽홀 <em class="tag">2D</em><small>2,432석 · 3D 미개방</small></button>
+      <button data-v="muse">뮤즈라이브 <em class="tag">2D</em><small>237석 · 3D 미개방</small></button>
+    </div>
+
+    <!-- 우리금융아트홀 -->
+    <section id="ui-woori" class="field" style="gap:14px">
+      <div class="tabs" id="floorTabs"><button data-floor="1F" class="on">1층</button><button data-floor="2F">2층</button></div>
+      <div class="map">
+        <div class="stage">무 대</div>
+        <div class="zones" id="zones"></div>
+        <div class="legend"><span>위쪽이 앞열(무대 쪽)</span><span>막대를 눌러 열 선택</span></div>
+      </div>
+      <div class="field"><label>열 <b id="rowLabel">10열</b></label><input type="range" id="rowRange" min="1" max="22" value="10"></div>
+    </section>
+
+    <!-- KSPO DOME -->
+    <section id="ui-kspo" class="field" style="gap:12px" hidden>
+      <div class="field"><label>무대 배치 <b style="font-weight:500;color:var(--muted)">공연마다 달라요</b></label>
+        <select id="stageSel"></select></div>
+      <div class="map" style="padding:8px"><svg class="ring" id="ring" viewBox="-110 -110 220 220"></svg>
+        <div class="legend"><span>구역을 눌러 선택 · 가운데는 플로어</span><span>회색: 무대 뒤</span></div></div>
+      <div class="field"><label>구역 안 위치</label>
+        <div class="seg" id="depthSeg"><button data-d="front">앞쪽</button><button data-d="mid" class="on">가운데</button><button data-d="back">뒤쪽</button></div></div>
+    </section>
+
+    <!-- 티켓링크 라이브 아레나 -->
+    <section id="ui-hb" class="field" style="gap:12px" hidden>
+      <div class="field"><label>공연 형태</label><select id="hbMode"></select></div>
+      <div class="map" style="padding:8px"><svg class="ring" id="hbRing" viewBox="-110 -95 220 190"></svg>
+        <div class="legend"><span>안쪽: 1층 이동식석 · 바깥: 2층 고정석</span><span>위쪽이 북측(2-3문)</span></div></div>
+      <div class="field"><label>구역 안 위치</label>
+        <div class="seg" id="hbDepth"><button data-d="front">앞쪽</button><button data-d="mid" class="on">가운데</button><button data-d="back">뒤쪽</button></div></div>
+    </section>
+
+    <!-- 야외 공연장 -->
+    <section id="ui-out" class="field" style="gap:12px" hidden>
+      <div class="map" style="padding:8px"><svg class="ring" id="outRing" viewBox="-110 -110 220 220"></svg>
+        <div class="legend"><span id="outNote"></span></div></div>
+      <div class="field"><label>구역 안 위치</label>
+        <div class="seg" id="outDepth"><button data-d="front">앞쪽</button><button data-d="mid" class="on">가운데</button><button data-d="back">뒤쪽</button></div></div>
+    </section>
+
+    <!-- 2D 모드 -->
+    <section id="ui-2d" class="field" style="gap:10px" hidden>
+      <div class="note2d">이 공연장은 아직 3D 데이터가 공개되지 않았어요. 좌석배치도와 평면도를 바탕으로 거리와 시야를 추정해 보여드려요.</div>
+      <div class="field" id="rowField"><label><span id="zoneLabel">구역</span> <b id="row2dLabel">–</b></label><input type="range" id="row2d" min="1" max="10" value="1"></div>
+    </section>
+
+    <div class="card">
+      <div class="seatname" id="seatName">–</div>
+      <div class="stat"><small id="lDist">무대 앞까지 거리</small><b id="dist">–</b></div>
+      <div class="stat"><small id="lAngle">무대 대비 시선</small><b id="angle">–</b></div>
+      <div class="stat"><small id="lSize">출연자가 보이는 크기</small><b id="size">–</b></div>
+      <div class="stat"><small>추천 대상</small><b id="rec" style="font-size:14px">–</b></div>
+      <div class="warn" id="warn"></div>
+    </div>
+
+    <div class="toggles"><label><input type="checkbox" id="perf" checked> 무대에 출연자(키 175cm) 세워보기</label></div>
+
+    <div class="src">
+      데이터: 한국체육산업개발(주) 「올림픽공원 공연장 실감형 콘텐츠」(공공데이터포털) · 각 공연장 좌석배치도.<br>
+      원본 3D 모델(우리금융아트홀 170MB, KSPO DOME 476MB, 티켓링크 라이브 아레나 79MB, 수변무대 25MB, 88잔디마당 11MB)을 웹용으로 경량화했습니다. 올림픽홀·뮤즈라이브는 3D 데이터가 공개되지 않아 좌석배치도·평면도 기반 2D 추정 모드로 제공합니다. 좌석 위치는 근사값이며 실제 시야와 다를 수 있습니다. 아레나형 공연장의 무대·스크린은 예시 배치이며, 티켓링크 라이브 아레나의 이동식 좌석과 무대는 대관 도면(인출 시 42.1×31.2m, 무대설치구간 30×18m)을 바탕으로 만들었습니다.
+    </div>
+  </aside>
+
+  <main id="view">
+    <div class="loading" id="loading"><div id="loadMsg">3D 공연장 불러오는 중…</div><div class="bar"><i id="barFill"></i></div><small id="pct" style="color:#9aa4b8">0%</small></div>
+    <div id="view2d" hidden>
+      <div class="mapwrap"><svg class="seatmap" id="seatmap"></svg></div>
+      <div class="sk"><svg id="sketch" viewBox="0 0 640 360"></svg>
+        <p><b style="color:#162033">시야 스케치</b><br>선택한 좌석 눈높이에서 본 무대를 간단한 원근도로 그렸어요. 주황색은 키 175cm 출연자예요. 거리·높이는 도면 기반 추정값이에요.</p></div>
+    </div>
+    <div class="hud"><b id="hudName">–</b><br>드래그로 둘러보기</div>
+    <div class="hint">드래그: 둘러보기 · 휠/핀치: 오페라글라스 확대</div>
+    <div class="ctrl"><button id="zoomBtn">🔭 오페라글라스</button><button id="resetBtn">시선 초기화</button></div>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from './vendor/three.module.js';
+import { GLTFLoader } from './vendor/GLTFLoader.js';
+import { MeshoptDecoder } from './vendor/meshopt_decoder.module.js';
+import * as W from './seats.js';
+import * as K from './kspo.js';
+import * as HB from './hb.js';
+import { OUTDOOR, eyeOf as outEye, at as outAt } from './outdoor.js';
+import * as TD from './twod.js';
+
+const $ = id => document.getElementById(id);
+const state = { venue:'woori', yaw:0, pitch:0, fov:60,
+  woori:{ floor:'1F', zone:'B', row:10 },
+  kspo:{ stage:'end1', zone:'floor', depth:'mid' },
+  hb:{ mode:'concert', zone:'floor', depth:'mid' },
+  lake:{ zone:'TC', depth:'mid' }, g88:{ zone:'L0', depth:'mid' },
+  oh:{ zone:'F2', row:3 }, muse:{ seat:'나-3-7' } };
+
+// ---------------- three.js 기본 ----------------
+const host = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
+host.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x15181f);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a3a, 2.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.0); sun.position.set(10, 60, 10); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 600);
+function resize(){ const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+const venues = {}; // 불러온 모델 캐시
+const FILES = { woori:'models/woori.glb', kspo:'models/kspo.glb', hb:'models/hb.glb', lake:'models/lake.glb', g88:'models/g88.glb' };
+const SIZES = { woori:12098032, kspo:15690972, hb:8256424, lake:8525280, g88:5742056 };
+
+// 공연장별 로딩 Promise 캐시: 같은 공연장은 한 번만 내려받고, 로딩 화면은 지금 보고 있는 공연장 기준으로만 갱신
+const loading = {}, progress = {};
+const VENUE_NAME = { kspo:'KSPO DOME', hb:'티켓링크 라이브 아레나', woori:'우리금융아트홀', lake:'수변무대', g88:'88잔디마당' };
+function showLoading(v){
+  const ld = $('loading');
+  if (venues[v]) { ld.classList.add('hide'); return; }
+  ld.classList.remove('hide'); $('loadMsg').textContent = VENUE_NAME[v] + ' 3D 모델 불러오는 중…';
+  const p = progress[v] || 0; $('barFill').style.width = p + '%'; $('pct').textContent = p + '%';
+}
+function loadVenue(v){
+  if (venues[v]) return Promise.resolve(venues[v]);
+  if (!loading[v]) loading[v] = fetchVenue(v).finally(() => { delete loading[v]; });
+  return loading[v];
+}
+async function fetchVenue(v){
+  let got = 0; progress[v] = 0;
+  const res = await fetch(FILES[v]); if (!res.ok) throw new Error(FILES[v] + ' ' + res.status);
+  const rd = res.body.getReader(); const chunks = [];
+  for (;;) { const { done, value } = await rd.read(); if (done) break; chunks.push(value); got += value.length;
+    const p = progress[v] = Math.min(99, Math.round(got / SIZES[v] * 100));
+    if (state.venue === v) { $('barFill').style.width = p + '%'; $('pct').textContent = p + '%'; } }
+  const buf = await new Blob(chunks).arrayBuffer();
+  const gltf = await new Promise((ok, no) => loader.parse(buf, '', ok, no));
+  const root = new THREE.Group(); root.add(gltf.scene); root.updateMatrixWorld(true);
+  const extras = new THREE.Group(); root.add(extras);
+  const info = { root, extras, stageY: 0 };
+  if (v === 'woori') {
+    const hit = new THREE.Raycaster(new THREE.Vector3(-13, 15, -4), new THREE.Vector3(0, -1, 0)).intersectObject(gltf.scene, true)[0];
+    info.stageY = hit ? hit.point.y : -1.25;
+  }
+  venues[v] = info;
+  return info;
+}
+
+// ---------------- 출연자·무대 소품 ----------------
+const perfMat = new THREE.MeshStandardMaterial({ color:0xf28c18, roughness:.6 });
+const headMat = new THREE.MeshStandardMaterial({ color:0xffd9b0, roughness:.7 });
+function person(x, y, z){ const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.05, 6, 12), perfMat); b.position.set(0, 0.75, 0);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), headMat); h.position.set(0, 1.62, 0);
+  g.add(b, h); g.position.set(x, y, z); g.userData.perf = true; return g; }
+
+let stageInfo = null; // 현재 무대 기준점
+function buildExtras(){
+  const v = venues[state.venue]; if (!v) return;
+  v.extras.traverse(o => { // 이전 소품의 GPU 자원 해제(공용 출연자 재질은 유지)
+    if (o.geometry) o.geometry.dispose();
+    for (const m of [].concat(o.material || [])) if (m !== perfMat && m !== headMat) m.dispose();
+  });
+  v.extras.clear();
+  if (state.venue === 'woori') {
+    for (const [x, z] of [[-15.5,-4],[-14,-6.2],[-14,-1.8]]) v.extras.add(person(x, v.stageY, z));
+    stageInfo = { seg: [new THREE.Vector3(-18.6, v.stageY, -14), new THREE.Vector3(-18.6, v.stageY, 6)], front: new THREE.Vector3(-18.5, v.stageY, -4), center: new THREE.Vector3(-15.5, v.stageY, -4), look: new THREE.Vector3(-11, v.stageY + 1.6, -4), dir: null };
+  } else if (OUTDOOR[state.venue]) {
+    const o = OUTDOOR[state.venue], [cx, cz] = o.center, y0 = o.stageY;
+    let top = y0;
+    if (o.buildStage) {
+      const H = 1.5;
+      const box = new THREE.Mesh(new THREE.CylinderGeometry(o.stageR, o.stageR, H, 48), new THREE.MeshStandardMaterial({ color:0x20232b, roughness:.8 }));
+      box.position.set(cx, y0 + H/2, cz); v.extras.add(box);
+      top = y0 + H;
+    }
+    for (const dx of [-2.5, 0, 2.5]) v.extras.add(person(cx + dx, top, cz + (o.buildStage ? 0 : 0)));
+    const c = new THREE.Vector3(cx, top, cz);
+    stageInfo = { front: c, center: c, look: new THREE.Vector3(cx, top + 1.6, cz), dir: null, center360: true, radius: o.stageR };
+  } else if (state.venue === 'hb') {
+    const m = state.hb.mode, cx = HB.C[0], fy = HB.FLOOR_Y;
+    v.extras.add(HB.buildRetractable(HB.MODES[m].lower));
+    if (m === 'sports') {
+      v.extras.add(HB.buildCourt());
+      const c = new THREE.Vector3(cx, fy, HB.C[1]);
+      stageInfo = { front: c, center: c, look: new THREE.Vector3(cx, fy + 1, HB.C[1]), dir: null, court: true };
+    } else {
+      const H = 1.8, stageMat = new THREE.MeshStandardMaterial({ color:0x20232b, roughness:.8 });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(30, H, 18), stageMat); box.position.set(cx, fy + H/2, 23.8 - 9); v.extras.add(box);
+      const led = new THREE.Mesh(new THREE.PlaneGeometry(20, 8), new THREE.MeshBasicMaterial({ color:0x3b6fd8, side:THREE.DoubleSide })); led.position.set(cx, fy + H + 5, 22.5); v.extras.add(led);
+      for (const s of [-3, 0, 3]) v.extras.add(person(cx + s, fy + H, 8.5));
+      stageInfo = { seg: [new THREE.Vector3(cx - 15, fy + H, 5.8), new THREE.Vector3(cx + 15, fy + H, 5.8)], front: new THREE.Vector3(cx, fy + H, 5.8), center: new THREE.Vector3(cx, fy + H, 8.5), look: new THREE.Vector3(cx, fy + H + 1.6, 9), dir: -90 };
+    }
+  } else {
+    const st = K.STAGES[state.kspo.stage];
+    const stageMat = new THREE.MeshStandardMaterial({ color:0x20232b, roughness:.8 });
+    const ledMat = new THREE.MeshBasicMaterial({ color:0x3b6fd8 });
+    const H = 1.8;
+    if (st.deg === null) {
+      const [cx, cz] = K.MODEL_CENTER;
+      const box = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, H, 48), stageMat); box.position.set(cx, H/2, cz); v.extras.add(box);
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + .4; v.extras.add(person(cx + 3*Math.cos(a), H, cz + 3*Math.sin(a))); }
+      const c = new THREE.Vector3(cx, H, cz);
+      stageInfo = { front: c, center: c, look: new THREE.Vector3(cx, H + 1.6, cz), dir: null, center360: true };
+    } else {
+      const [sx, sz] = K.toModel(st.deg, 15);       // 무대 중심
+      const [bx, bz] = K.toModel(st.deg, 21);       // 무대 뒤 스크린
+      const [fx, fz] = K.toModel(st.deg, 10);       // 무대 앞단
+      const yaw = Math.atan2(sx - K.MODEL_CENTER[0], sz - K.MODEL_CENTER[1]);
+      const box = new THREE.Mesh(new THREE.BoxGeometry(26, H, 10), stageMat); box.position.set(sx, H/2, sz); box.rotation.y = yaw; v.extras.add(box);
+      const led = new THREE.Mesh(new THREE.PlaneGeometry(22, 9), ledMat); led.position.set(bx, H + 6.5, bz); led.rotation.y = yaw + Math.PI; v.extras.add(led);
+      const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); // 무대 → 객석 중앙 방향
+      const side = new THREE.Vector3(fwd.z, 0, -fwd.x);
+      for (const s of [-3, 0, 3]) { const p = new THREE.Vector3(fx, H, fz).addScaledVector(fwd, -2).addScaledVector(side, s); v.extras.add(person(p.x, H, p.z)); }
+      const fr = new THREE.Vector3(fx, H, fz);
+      stageInfo = { seg: [fr.clone().addScaledVector(side, -13), fr.clone().addScaledVector(side, 13)], front: fr, center: new THREE.Vector3(sx, H, sz), look: new THREE.Vector3(fx, H + 1.6, fz).addScaledVector(fwd, -3), dir: st.deg };
+    }
+  }
+  v.extras.traverse(o => { if (o.userData.perf) o.visible = $('perf').checked; });
+}
+$('perf').onchange = () => venues[state.venue]?.extras.traverse(o => { if (o.userData.perf) o.visible = $('perf').checked; });
+
+// ---------------- 우리금융아트홀 UI ----------------
+const LAYOUT = { '1F':[['A','wing'],['B',''],['C','wing']], '2F':[['D','wing'],['E',''],['F','wing']] };
+function buildWooriMap(){
+  const s = state.woori, el = $('zones'); el.innerHTML = '';
+  for (const [z, cls] of LAYOUT[s.floor]) {
+    const info = W.ZONES[z], col = document.createElement('div'); col.className = 'zone ' + cls; col.innerHTML = `<h4>${z}구역</h4>`;
+    const rows = document.createElement('div'); rows.className = 'rows';
+    for (let r = 1; r <= info.rows[1]; r++) {
+      if (s.floor === '1F' && r === 15) { const a = document.createElement('div'); a.className = 'aisle'; rows.appendChild(a); }
+      const b = document.createElement('button'); b.className = 'row'; if (r < info.rows[0]) b.style.visibility = 'hidden';
+      b.title = `${z}구역 ${r}열`; b.dataset.zone = z; b.dataset.row = r; b.onclick = () => { s.zone = z; s.row = r; update(); };
+      rows.appendChild(b);
+    }
+    col.appendChild(rows); el.appendChild(col);
+  }
+}
+document.querySelectorAll('#floorTabs button').forEach(btn => btn.onclick = () => {
+  const s = state.woori; if (btn.dataset.floor === s.floor) return;
+  document.querySelectorAll('#floorTabs button').forEach(b => b.classList.toggle('on', b === btn));
+  s.floor = btn.dataset.floor; s.zone = s.floor === '1F' ? 'B' : 'E'; s.row = s.floor === '1F' ? 10 : 3; buildWooriMap(); update();
+});
+$('rowRange').oninput = () => { state.woori.row = +$('rowRange').value; update(); };
+
+// ---------------- KSPO DOME UI ----------------
+for (const [k, st] of Object.entries(K.STAGES)) { const o = document.createElement('option'); o.value = k; o.textContent = st.label; $('stageSel').appendChild(o); }
+$('stageSel').onchange = () => { state.kspo.stage = $('stageSel').value; buildRing(); buildExtras(); update(); };
+document.querySelectorAll('#depthSeg button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#depthSeg button').forEach(x => x.classList.toggle('on', x === b)); state.kspo.depth = b.dataset.d; update(); });
+
+const RING_R = { lower:[36, 70], upper:[74, 104] };
+function svgDeg(d){ return -d * Math.PI / 180; } // 배치도 각도 → SVG(아래가 +y)
+function arc(r0, r1, a0, a1){
+  const p = (r, a) => `${(r*Math.cos(svgDeg(a))).toFixed(1)} ${(r*Math.sin(svgDeg(a))).toFixed(1)}`;
+  return `M${p(r0,a0)} L${p(r1,a0)} A${r1} ${r1} 0 0 0 ${p(r1,a1)} L${p(r0,a1)} A${r0} ${r0} 0 0 1 ${p(r0,a0)}Z`;
+}
+function behindFactor(zone){ // 0=정면, 1=정후면
+  const st = K.STAGES[state.kspo.stage]; if (st.deg === null) return 0;
+  let d = Math.abs(((K.chartAngle(zone) - st.deg) % 360 + 540) % 360 - 180); // 무대 방향과의 각도차
+  return 1 - d / 180;
+}
+function buildRing(){
+  const svg = $('ring'); const ns = 'http://www.w3.org/2000/svg'; svg.innerHTML = '';
+  for (const rg of ['lower','upper']) {
+    const zs = K.ZONE_LIST.filter(z => K.ring(z) === rg).map(z => ({ z, a: K.chartAngle(z) })).sort((a, b) => a.a - b.a);
+    zs.forEach((cur, i) => {
+      const prev = zs[(i - 1 + zs.length) % zs.length], next = zs[(i + 1) % zs.length];
+      const gp = ((cur.a - prev.a) + 360) % 360, gn = ((next.a - cur.a) + 360) % 360;
+      const a0 = cur.a - Math.min(gp / 2, 9), a1 = cur.a + Math.min(gn / 2, 9);
+      const path = document.createElementNS(ns, 'path'); path.setAttribute('d', arc(...RING_R[rg], a0 + .4, a1 - .4));
+      path.setAttribute('class', 'z' + (behindFactor(cur.z) > .78 ? ' behind' : ''));
+      path.dataset.zone = cur.z; path.onclick = () => { state.kspo.zone = cur.z; update(); };
+      const t = document.createElementNS(ns, 'title'); t.textContent = `${cur.z}구역 (${K.SEATS[cur.z]}석)`; path.appendChild(t);
+      svg.appendChild(path);
+      const rm = (RING_R[rg][0] + RING_R[rg][1]) / 2, tx = document.createElementNS(ns, 'text');
+      tx.setAttribute('x', (rm * Math.cos(svgDeg(cur.a))).toFixed(1)); tx.setAttribute('y', (rm * Math.sin(svgDeg(cur.a)) + 3).toFixed(1));
+      tx.setAttribute('text-anchor', 'middle'); tx.textContent = cur.z; svg.appendChild(tx);
+    });
+  }
+  const fl = document.createElementNS(ns, 'circle'); fl.setAttribute('r', 32); fl.setAttribute('class', 'floor'); fl.id = 'floorDisk';
+  fl.onclick = () => { state.kspo.zone = 'floor'; update(); }; svg.appendChild(fl);
+  const st = K.STAGES[state.kspo.stage];
+  if (st.deg === null) { const c = document.createElementNS(ns, 'circle'); c.setAttribute('r', 9); c.setAttribute('class', 'stg'); svg.appendChild(c); }
+  else { const g = document.createElementNS(ns, 'rect'); g.setAttribute('x', -15); g.setAttribute('y', -5); g.setAttribute('width', 30); g.setAttribute('height', 10); g.setAttribute('rx', 2);
+    g.setAttribute('class', 'stg'); g.setAttribute('transform', `rotate(${-st.deg + 90}) translate(0 -22)`); g.style.pointerEvents = 'none'; svg.appendChild(g); }
+  const lb = document.createElementNS(ns, 'text'); lb.setAttribute('text-anchor', 'middle'); lb.setAttribute('y', st.deg === null ? 3 : 20); lb.textContent = st.deg === null ? '무대' : '플로어'; svg.appendChild(lb);
+  if (st.deg !== null) { const s2 = document.createElementNS(ns, 'text'); s2.setAttribute('text-anchor','middle'); s2.setAttribute('fill','#fff');
+    s2.setAttribute('transform', `rotate(${-st.deg + 90}) translate(0 -19)`); s2.style.fill = '#fff'; s2.textContent = '무대'; svg.appendChild(s2); }
+}
+
+// ---------------- 티켓링크 라이브 아레나 UI ----------------
+for (const [k, m] of Object.entries(HB.MODES)) { const o = document.createElement('option'); o.value = k; o.textContent = m.label; $('hbMode').appendChild(o); }
+$('hbMode').onchange = () => { const s = state.hb; s.mode = $('hbMode').value;
+  if (s.mode === 'sports' && s.zone === 'floor') s.zone = 'LS'; if (s.mode === 'concert' && s.zone === 'LS') s.zone = 'floor';
+  buildHbRing(); buildExtras(); update(); };
+document.querySelectorAll('#hbDepth button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#hbDepth button').forEach(x => x.classList.toggle('on', x === b)); state.hb.depth = b.dataset.d; update(); });
+function buildHbRing(){
+  const svg = $('hbRing'), ns = 'http://www.w3.org/2000/svg'; svg.innerHTML = '';
+  const lower = HB.MODES[state.hb.mode].lower, R = { lower:[38, 62], upper:[66, 96] };
+  for (const s of HB.SECTORS) {
+    if (s.ring === 'lower' && !lower.includes(s.dir)) continue;
+    const half = s.ring === 'lower' ? 30 : 21;
+    const path = document.createElementNS(ns, 'path'); path.setAttribute('d', arc(...R[s.ring], s.deg - half + 1, s.deg + half - 1));
+    path.setAttribute('transform', 'scale(1 .82)');
+    path.setAttribute('class', 'z' + (state.hb.mode === 'concert' && s.dir.includes('S') && s.ring === 'upper' && s.dir !== 'S' ? '' : '') + (state.hb.mode === 'concert' && s.id === 'US' ? ' behind' : ''));
+    path.dataset.zone = s.id; path.onclick = () => { state.hb.zone = s.id; update(); };
+    const t = document.createElementNS(ns, 'title'); t.textContent = s.name; path.appendChild(t); svg.appendChild(path);
+    const rm = (R[s.ring][0] + R[s.ring][1]) / 2, tx = document.createElementNS(ns, 'text');
+    tx.setAttribute('x', (rm * Math.cos(svgDeg(s.deg))).toFixed(1)); tx.setAttribute('y', (rm * Math.sin(svgDeg(s.deg)) * .82 + 3).toFixed(1));
+    tx.setAttribute('text-anchor', 'middle'); tx.textContent = (s.ring === 'lower' ? '1층 ' : '') + ({N:'북',E:'동',S:'남',W:'서',NE:'북동',SE:'남동',SW:'남서',NW:'북서'})[s.dir]; svg.appendChild(tx);
+  }
+  if (state.hb.mode === 'concert') {
+    const fl = document.createElementNS(ns, 'rect'); fl.setAttribute('x', -32); fl.setAttribute('y', -24); fl.setAttribute('width', 64); fl.setAttribute('height', 28); fl.setAttribute('rx', 4);
+    fl.setAttribute('class', 'floor'); fl.id = 'hbFloor'; fl.onclick = () => { state.hb.zone = 'floor'; update(); }; svg.appendChild(fl);
+    const st = document.createElementNS(ns, 'rect'); st.setAttribute('x', -28); st.setAttribute('y', 8); st.setAttribute('width', 56); st.setAttribute('height', 26); st.setAttribute('rx', 3); st.setAttribute('class', 'stg'); svg.appendChild(st);
+    for (const [y, txt, fill] of [[-7, '플로어', null], [25, '무대', '#fff']]) { const t = document.createElementNS(ns, 'text'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', y); if (fill) t.style.fill = fill; t.textContent = txt; svg.appendChild(t); }
+  } else {
+    const ct = document.createElementNS(ns, 'rect'); ct.setAttribute('x', -30); ct.setAttribute('y', -16); ct.setAttribute('width', 60); ct.setAttribute('height', 32); ct.setAttribute('rx', 3); ct.style.fill = '#e9c48f'; svg.appendChild(ct);
+    const t = document.createElementNS(ns, 'text'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', 3); t.textContent = '핸드볼 코트'; svg.appendChild(t);
+  }
+}
+
+// ---------------- 야외 공연장 UI ----------------
+document.querySelectorAll('#outDepth button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#outDepth button').forEach(x => x.classList.toggle('on', x === b)); state[state.venue].depth = b.dataset.d; update(); });
+function buildOutRing(){
+  const o = OUTDOOR[state.venue], svg = $('outRing'), ns = 'http://www.w3.org/2000/svg'; svg.innerHTML = '';
+  $('outNote').textContent = o.note;
+  for (const z of o.zones) {
+    const [r0, r1, half] = z.svg;
+    const p = document.createElementNS(ns, 'path'); p.setAttribute('d', arc(r0, r1, z.deg - half, z.deg + half)); p.setAttribute('class', 'z');
+    p.dataset.zone = z.id; p.onclick = () => { state[state.venue].zone = z.id; update(); };
+    const t = document.createElementNS(ns, 'title'); t.textContent = z.label; p.appendChild(t); svg.appendChild(p);
+    const rm = (r0 + r1) / 2, tx = document.createElementNS(ns, 'text'); tx.setAttribute('text-anchor', 'middle');
+    tx.setAttribute('x', (rm * Math.cos(svgDeg(z.deg))).toFixed(1)); tx.setAttribute('y', (rm * Math.sin(svgDeg(z.deg)) + 3).toFixed(1)); tx.textContent = z.label; svg.appendChild(tx);
+  }
+  const c = document.createElementNS(ns, 'circle'); c.setAttribute('r', 22); c.setAttribute('class', 'stg'); svg.appendChild(c);
+  const t = document.createElementNS(ns, 'text'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('y', 3); t.style.fill = '#fff'; t.textContent = '무대'; svg.appendChild(t);
+}
+
+// ---------------- 2D 모드(올림픽홀·뮤즈라이브) ----------------
+const TWO_D = { oh: TD.OH, muse: TD.MUSE_INFO };
+function build2d(){
+  const v = state.venue, info = TWO_D[v], svg = $('seatmap'), ns = 'http://www.w3.org/2000/svg';
+  svg.setAttribute('viewBox', info.viewBox); svg.innerHTML = '';
+  const el = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+  if (v === 'oh') {
+    el('rect', { x:620, y:478, width:442, height:86, rx:8, class:'st' }); el('text', { x:841, y:536, 'text-anchor':'middle', 'font-size':40, style:'fill:#fff' }, '무대');
+    for (const z of info.zones) {
+      const p = el('polygon', { points: z.poly.map(q => q.join(',')).join(' '), class:'zp' }); p.dataset.zone = z.id;
+      p.onclick = () => { state.oh.zone = z.id; state.oh.row = Math.min(state.oh.row, z.rows); update(); };
+      const t = document.createElementNS(ns, 'title'); t.textContent = `${z.label} (${info.info(z)})`; p.appendChild(t);
+      const cx = z.poly.reduce((a, q) => a + q[0], 0) / z.poly.length, cy = z.poly.reduce((a, q) => a + q[1], 0) / z.poly.length;
+      el('text', { x:cx, y:cy + 10, 'text-anchor':'middle', 'font-size': z.id === 'FL' ? 34 : 28 }, z.id === 'FL' ? 'Floor' : z.id);
+    }
+    el('text', { x:195, y:650, 'text-anchor':'middle', 'font-size':26, style:'fill:#6b7487' }, '2F'); el('text', { x:1471, y:650, 'text-anchor':'middle', 'font-size':26, style:'fill:#6b7487' }, '2F');
+  } else {
+    el('path', { d:'M680 160 Q1176 330 1675 160 L1735 325 Q1176 520 615 325 Z', style:'fill:#dcdfe6' });
+    el('text', { x:1176, y:330, 'text-anchor':'middle', 'font-size':64 }, '무 대');
+    for (const st of TD.MUSE_SEATS) {
+      const r = el('rect', { x: st.cx - 23, y: st.cy - 25, width: 46, height: 50, rx: 4, class: 'seat' + (st.temp ? ' tmp' : '') }); r.dataset.seat = st.id;
+      r.onclick = () => { state.muse.seat = st.id; update(); };
+      const t = document.createElementNS(ns, 'title'); t.textContent = st.label + (st.temp ? ' (간이석)' : ''); r.appendChild(t);
+    }
+    for (const [lb, x] of [['가구역', 530], ['나구역', 1180], ['다구역', 1820]]) el('text', { x, y:540, 'text-anchor':'middle', 'font-size':40, style:'fill:#d22' }, lb);
+    for (const [lb, y] of [['A',616],['B',675],['1',828],['2',887],['3',945],['4',1004],['5',1062],['6',1121],['7',1180]]) el('text', { x:680, y:y + 12, 'text-anchor':'middle', 'font-size':30, style:'fill:#d22' }, lb + '열');
+    el('text', { x:1176, y:1270, 'text-anchor':'middle', 'font-size':30, style:'fill:#6b7487' }, '점선 좌석은 A·B열 간이석(가변형)');
+  }
+}
+$('row2d').oninput = () => { state.oh.row = +$('row2d').value; update(); };
+
+// ---------------- 공통: 좌석 선택 → 카메라 ----------------
+let anim = null;
+function seatName(){
+  if (state.venue === 'woori') { const s = state.woori; return `${W.ZONES[s.zone].floor === '1F' ? '1층' : '2층'} ${s.zone}구역 ${s.row}열`; }
+  if (OUTDOOR[state.venue]) { const s = state[state.venue], o = OUTDOOR[state.venue];
+    return `${o.zones.find(z => z.id === s.zone).label} ${({ front:'앞쪽', mid:'가운데', back:'뒤쪽' })[s.depth]}`; }
+  if (state.venue === 'hb') { const s = state.hb, d = { front:'앞쪽', mid:'가운데', back:'뒤쪽' }[s.depth];
+    return s.zone === 'floor' ? `플로어 ${d}` : `${HB.name(s.zone)} ${d}`; }
+  const s = state.kspo, d = { front:'앞쪽', mid:'가운데', back:'뒤쪽' }[s.depth];
+  return s.zone === 'floor' ? `플로어 ${d}` : `${K.ring(s.zone) === 'lower' ? '1층' : '2층'} ${s.zone}구역 ${d}`;
+}
+function update(instant){
+  let eye, rec = '', warn = '';
+  if (TWO_D[state.venue]) return update2d();
+  if (state.venue === 'woori') {
+    const s = state.woori, info = W.ZONES[s.zone];
+    s.row = Math.max(info.rows[0], Math.min(info.rows[1], s.row));
+    $('rowRange').min = info.rows[0]; $('rowRange').max = info.rows[1]; $('rowRange').value = s.row; $('rowLabel').textContent = s.row + '열';
+    document.querySelectorAll('#zones .row').forEach(b => b.classList.toggle('sel', b.dataset.zone === s.zone && +b.dataset.row === s.row));
+    eye = new THREE.Vector3(...W.seatEye(s.zone, s.row));
+    rec = info.floor === '2F' ? '전체 연출·조명 감상' : s.row <= 4 ? '배우 표정·몰입감' : s.row <= 14 ? '균형 잡힌 시야' : '무대 전체 조망';
+  } else if (OUTDOOR[state.venue]) {
+    const s = state[state.venue], o = OUTDOOR[state.venue];
+    document.querySelectorAll('#outRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
+    const e = outEye(o, s.zone, s.depth); eye = new THREE.Vector3(...e.pos);
+    const rc = new THREE.Raycaster(new THREE.Vector3(eye.x, o.stageY + 5, eye.z), new THREE.Vector3(0, -1, 0), 0, 9);
+    const h = venues[state.venue] && rc.intersectObject(venues[state.venue].root.children[0], true)[0];
+    eye.y = (h ? h.point.y : o.stageY - 0.2) + e.eye;
+    const zl = o.zones.find(z => z.id === s.zone);
+    rec = zl.eye < 1 ? '피크닉·여유로운 관람' : zl.eye < 1.3 ? (s.depth === 'front' ? '무대 근거리 착석' : '편안한 착석 관람') : '자유로운 스탠딩';
+  } else if (state.venue === 'hb') {
+    const s = state.hb;
+    document.querySelectorAll('#hbRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
+    $('hbFloor')?.classList.toggle('sel', s.zone === 'floor');
+    eye = new THREE.Vector3(...(s.zone === 'floor' ? HB.floorEye(s.depth) : HB.seatEye(s.zone, s.depth)));
+    if (s.zone !== 'floor' && s.zone[0] === 'U' && venues.hb) {
+      let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
+      for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
+        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
+        const h = rc.intersectObject(venues.hb.root.children[0], true)[0]; if (h) top = Math.max(top, h.point.y);
+      }
+      eye.y = Math.max(eye.y, top + 1.2);
+    }
+    if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
+    else if (s.mode === 'concert' && s.zone === 'US') { rec = '시야 제한 감수'; warn = '무대 바로 뒤쪽 구역이에요. 시야 제한석이거나 판매하지 않을 수 있어요.'; }
+    else if (s.mode === 'concert' && (s.zone === 'USE' || s.zone === 'USW')) { rec = '가성비 측면석'; warn = '무대 측면이라 무대 일부와 스크린이 비스듬히 보여요.'; }
+    else if (s.mode === 'sports') rec = s.zone[0] === 'L' ? '선수 근거리·생동감' : '경기 흐름·전술 감상';
+    else rec = s.zone[0] === 'L' ? '무대 근거리·좌석 지정' : '전체 연출·조명 감상';
+  } else {
+    const s = state.kspo;
+    document.querySelectorAll('#ring path.z').forEach(p => p.classList.toggle('sel', +p.dataset.zone === s.zone));
+    $('floorDisk')?.classList.toggle('sel', s.zone === 'floor');
+    eye = new THREE.Vector3(...(s.zone === 'floor' ? K.floorEye(s.stage, s.depth) : K.seatEye(s.zone, s.depth)));
+    if (s.zone !== 'floor' && venues.kspo) { // 주변 좌석 단·등받이 높이를 재서 눈높이 보정
+      let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
+      for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
+        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
+        const h = rc.intersectObject(venues.kspo.root.children[0], true)[0]; if (h) top = Math.max(top, h.point.y);
+      }
+      eye.y = Math.max(eye.y, top + 1.2);
+    }
+    if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
+    else {
+      const bf = behindFactor(s.zone);
+      if (bf > .78) warn = '무대 뒤쪽 구역이에요. 시야 제한석이거나 판매하지 않을 수 있어요.';
+      else if (bf > .55) warn = '무대 측면이라 무대 일부와 스크린이 비스듬히 보여요.';
+      rec = bf > .78 ? '시야 제한 감수' : K.ring(s.zone) === 'upper' ? '전체 연출·조명·떼창 분위기' : bf > .55 ? '가성비 측면석' : '균형 잡힌 시야';
+    }
+  }
+  if (!stageInfo) return;
+  const court = !!stageInfo.court;
+  $('lDist').textContent = court ? '코트 중앙까지 거리' : stageInfo.center360 ? '무대 가장자리까지 거리' : '무대 앞까지 거리';
+  $('lAngle').textContent = court ? '코트 대비 시선' : '무대 대비 시선';
+  $('lSize').textContent = court ? '선수가 보이는 크기' : '출연자가 보이는 크기';
+  $('perf').closest('.toggles').hidden = court;
+  const name = seatName(); $('seatName').textContent = name; $('hudName').textContent = name;
+  // 무대 앞선(선분)까지의 최단 수평거리. 원형 무대는 가장자리까지, 코트는 중심까지
+  let dist;
+  if (stageInfo.center360) dist = Math.max(0, Math.hypot(eye.x - stageInfo.center.x, eye.z - stageInfo.center.z) - (stageInfo.radius || 7));
+  else if (stageInfo.seg) {
+    const [A, B] = stageInfo.seg, ax = B.x - A.x, az = B.z - A.z;
+    const t = Math.max(0, Math.min(1, ((eye.x - A.x) * ax + (eye.z - A.z) * az) / (ax * ax + az * az)));
+    dist = Math.hypot(eye.x - (A.x + ax * t), eye.z - (A.z + az * t));
+  } else dist = Math.hypot(eye.x - stageInfo.front.x, eye.z - stageInfo.front.z);
+  const head = stageInfo.center.clone(); head.y += 1.6;
+  const horiz = Math.hypot(eye.x - head.x, eye.z - head.z), ang = Math.atan2(eye.y - head.y, horiz) * 180 / Math.PI;
+  const apparent = 2 * Math.atan(0.875 / eye.distanceTo(head)) * 180 / Math.PI;
+  $('dist').textContent = dist.toFixed(1) + 'm';
+  $('angle').textContent = (Math.abs(ang) < 3 ? '눈높이 ' : ang > 0 ? '내려다봄 ' : '올려다봄 ') + Math.abs(ang).toFixed(0) + '°';
+  $('size').textContent = apparent > 6 ? '크게' : apparent > 3.5 ? '적당히' : apparent > 1.6 ? '작게' : '스크린 필요';
+  $('rec').textContent = rec;
+  $('warn').textContent = warn; $('warn').style.display = warn ? 'block' : 'none';
+  state.yaw = 0; state.pitch = 0;
+  if (instant) { camera.position.copy(eye); anim = null; } else anim = { t0: performance.now(), from: camera.position.clone(), to: eye };
+}
+
+function update2d(){
+  const v = state.venue, info = TWO_D[v];
+  let p, name, warn = '', rec = '';
+  if (v === 'oh') {
+    const s = state.oh, z = info.zones.find(q => q.id === s.zone);
+    s.row = Math.max(1, Math.min(z.rows, s.row));
+    $('rowField').hidden = false; $('zoneLabel').textContent = z.id === 'FL' ? 'Floor 위치' : '열';
+    $('row2d').max = z.rows; $('row2d').value = s.row; $('row2dLabel').textContent = info.rowLabel(z, s.row);
+    document.querySelectorAll('#seatmap .zp').forEach(e => e.classList.toggle('sel', e.dataset.zone === s.zone));
+    p = info.pos(s.zone, s.row); name = `${z.label} ${info.rowLabel(z, s.row)}`;
+    if (z.floor === '2F' || (z.split && s.row > z.split)) rec = '전체 연출·조명 감상'; else if (z.id === 'FL') rec = '아티스트 근거리·스탠딩';
+    else if (/^[GH]$/.test(z.id)) { rec = '무대 근거리 측면'; warn = '무대 바로 옆이라 무대 안쪽(반대편)이 가려질 수 있어요.'; }
+    else rec = p.d < 18 ? '몰입감 있는 근거리' : '균형 잡힌 시야';
+  } else {
+    const st = TD.MUSE_SEATS.find(q => q.id === state.muse.seat);
+    $('rowField').hidden = true;
+    document.querySelectorAll('#seatmap .seat').forEach(e => e.classList.toggle('sel', e.dataset.seat === st.id));
+    p = st.pos; name = st.label + (st.temp ? ' (간이석)' : '');
+    rec = st.temp ? '맨 앞 근거리(간이석)' : st.zone === '나' ? '정면 몰입감' : '측면 근거리';
+    if (st.temp) warn = 'A·B열은 공연에 따라 설치되는 간이 좌석이에요.';
+  }
+  const S = TD.stats(info.stage, p);
+  $('lDist').textContent = '무대 앞까지 거리'; $('lAngle').textContent = '무대 대비 시선'; $('lSize').textContent = '출연자가 보이는 크기';
+  $('seatName').textContent = name; $('hudName').textContent = name;
+  $('dist').textContent = S.dist.toFixed(1) + 'm';
+  $('angle').textContent = (Math.abs(S.ang) < 3 ? '눈높이 ' : S.ang > 0 ? '내려다봄 ' : '올려다봄 ') + Math.abs(S.ang).toFixed(0) + '°';
+  $('size').textContent = S.apparent > 6 ? '크게' : S.apparent > 3.5 ? '적당히' : S.apparent > 1.6 ? '작게' : '스크린 필요';
+  if (!warn && S.side > 45) warn = '무대를 비스듬히 보는 자리예요. 무대 한쪽 끝이 잘 안 보일 수 있어요.';
+  $('rec').textContent = rec; $('warn').textContent = warn; $('warn').style.display = warn ? 'block' : 'none';
+  $('sketch').innerHTML = TD.sketch(info.stage, p);
+}
+
+// ---------------- 공연장 전환 ----------------
+async function switchVenue(v){
+  state.venue = v;
+  const is2d = !!TWO_D[v];
+  $('view2d').hidden = !is2d; renderer.domElement.style.visibility = is2d ? 'hidden' : 'visible';
+  document.querySelector('.ctrl').hidden = is2d; document.querySelector('.hint').hidden = is2d; document.querySelector('.hud').hidden = is2d; $('ui-2d').hidden = !is2d;
+  $('perf').closest('.toggles').hidden = is2d;
+  document.querySelectorAll('#venues button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('ui-woori').hidden = v !== 'woori'; $('ui-kspo').hidden = v !== 'kspo'; $('ui-hb').hidden = v !== 'hb'; $('ui-out').hidden = !OUTDOOR[v];
+  for (const [k, info] of Object.entries(venues)) info.root.visible = false;
+  stageInfo = null;
+  if (is2d) { $('loading').classList.add('hide'); build2d(); update2d(); return; }
+  showLoading(v);
+  const info = await loadVenue(v);
+  if (!info.root.parent) scene.add(info.root);
+  if (state.venue !== v) return; // 그사이 다른 공연장을 골랐으면 화면을 건드리지 않음
+  $('loading').classList.add('hide');
+  info.root.visible = true;
+  scene.background = new THREE.Color(OUTDOOR[v] ? 0xa9cbe8 : 0x15181f);
+  if (v === 'kspo') buildRing(); if (v === 'hb') buildHbRing(); if (OUTDOOR[v]) buildOutRing();
+  buildExtras(); setFov(60); update(true);
+}
+document.querySelectorAll('#venues button').forEach(b => b.onclick = () => { if (b.dataset.v !== state.venue) switchVenue(b.dataset.v).catch(fail); });
+function fail(e){ $('loadMsg').textContent = '3D 모델을 불러오지 못했습니다.'; console.error(e); }
+
+// ---------------- 둘러보기 조작 ----------------
+let drag = null; const cv = renderer.domElement;
+cv.addEventListener('pointerdown', e => { drag = { x:e.clientX, y:e.clientY, yaw:state.yaw, pitch:state.pitch }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (!drag) return; const k = 0.18 * (state.fov / 60);
+  state.yaw = drag.yaw - (e.clientX - drag.x) * k; state.pitch = Math.max(-45, Math.min(45, drag.pitch + (e.clientY - drag.y) * k)); });
+addEventListener('pointerup', () => drag = null);
+cv.addEventListener('wheel', e => { e.preventDefault(); setFov(state.fov + e.deltaY * 0.03); }, { passive:false });
+let pinch = null;
+cv.addEventListener('touchmove', e => { if (e.touches.length !== 2) { pinch = null; return; }
+  const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  if (pinch) setFov(state.fov * pinch / d); pinch = d; drag = null; }, { passive:true });
+function setFov(f){ state.fov = Math.max(10, Math.min(75, f)); $('zoomBtn').classList.toggle('on', state.fov < 40); }
+$('zoomBtn').onclick = () => setFov(state.fov < 40 ? 60 : (state.venue === 'kspo' ? 16 : 22));
+$('resetBtn').onclick = () => { state.yaw = 0; state.pitch = 0; setFov(60); };
+
+const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+renderer.setAnimationLoop(now => {
+  if (anim) { const t = Math.min(1, (now - anim.t0) / 900); camera.position.lerpVectors(anim.from, anim.to, ease(t)); if (t >= 1) anim = null; }
+  camera.fov += (state.fov - camera.fov) * 0.15; camera.updateProjectionMatrix();
+  if (stageInfo) {
+    const dir = stageInfo.look.clone().sub(camera.position).normalize();
+    const sph = new THREE.Spherical().setFromVector3(dir);
+    sph.theta += THREE.MathUtils.degToRad(state.yaw);
+    sph.phi = THREE.MathUtils.clamp(sph.phi + THREE.MathUtils.degToRad(state.pitch), 0.2, Math.PI - 0.2);
+    camera.lookAt(new THREE.Vector3().setFromSpherical(sph).add(camera.position));
+  }
+  renderer.render(scene, camera);
+});
+
+buildWooriMap();
+const start = ['#kspo','#hb','#lake','#g88','#oh','#muse'].includes(location.hash) ? location.hash.slice(1) : 'woori';
+switchVenue(start).catch(fail);
+</script>
+</body>
+</html>
