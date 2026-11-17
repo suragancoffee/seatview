@@ -606,9 +606,9 @@ function update(instant){
       eye = new THREE.Vector3(x, floorAt(x, z, 2.1) + WC_EYE, z);
       document.querySelectorAll('#hbRing path.z').forEach(p => p.classList.remove('sel')); $('hbFloor')?.classList.remove('sel'); }
     if (!s.wc && s.zone !== 'floor' && s.zone[0] === 'U' && venues.hb) {
-      let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
+      let top = -9; const rc = new THREE.Raycaster(); rc.far = 4;
       for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
-        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
+        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 0.3, eye.z + dz), new THREE.Vector3(0, -1, 0)); // 머리 위 처마·지붕은 무시
         const h = rc.intersectObject(venues.hb.root.children[0], true)[0]; if (h) top = Math.max(top, h.point.y);
       }
       eye.y = Math.max(eye.y, top + 1.2);
@@ -628,9 +628,10 @@ function update(instant){
     if (s.wc) { eye = new THREE.Vector3(...K.wheelchairEye(s.wc));
       document.querySelectorAll('#ring path.z').forEach(p => p.classList.remove('sel')); $('floorDisk')?.classList.remove('sel'); }
     else if (s.zone !== 'floor' && venues.kspo) { // 주변 좌석 단·등받이 높이를 재서 눈높이 보정
-      let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
+      // 광선은 눈 위 1.2m에서 시작: 그보다 높이 있는 2층 뒤쪽 처마·지붕 위로 카메라가 올라가지 않게
+      let top = -9; const rc = new THREE.Raycaster(); rc.far = 5;
       for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
-        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
+        rc.set(new THREE.Vector3(eye.x + dx, eye.y + 1.2, eye.z + dz), new THREE.Vector3(0, -1, 0));
         const h = rc.intersectObject(venues.kspo.root.children[0], true)[0]; if (h) top = Math.max(top, h.point.y);
       }
       eye.y = Math.max(eye.y, top + 1.2);
