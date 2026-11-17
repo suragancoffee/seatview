@@ -90,7 +90,7 @@ async function fetchKorean(key) {
     const xml = await (await fetch(url, { headers: UA })).text();
     const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
     if (page === 1 && !items.length) throw new Error('국문 공연정보 응답 없음: ' + xml.slice(0, 200));
-    for (const it of items) rows.push({ title: tag(it, 'title'), subjectKeyword: tag(it, 'subjectKeyword'), spatial: tag(it, 'spatial'), temporalCoverage: tag(it, 'temporalCoverage') });
+    for (const it of items) rows.push({ title: tag(it, 'title'), venue: tag(it, 'subjectKeyword'), spatial: tag(it, 'spatial'), temporalCoverage: tag(it, 'temporalCoverage') });
     const total = +tag(xml, 'totalCount') || 0;
     if (!items.length || rows.length >= total) break;
   }
@@ -104,6 +104,8 @@ async function main() {
   const [en, ko] = await Promise.all([fetchEnglishCsv(), fetchKorean(key)]);
   const out = buildEvents(en, ko, { since: '2025-01-01' });
   if (out.events.length < 20) throw new Error(`공연이 ${out.events.length}개뿐 — 데이터 형식이 바뀐 것 같아 저장하지 않음`);
+  const histTotal = Object.values(out.history).reduce((a, b) => a + b, 0);
+  if (histTotal < out.totalKo * 0.5) throw new Error(`공연장 기록이 ${histTotal}건뿐 — 국문 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const prev = JSON.parse(await readFile(OUT, 'utf8').catch(() => '{}'));
   const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID }, ...out };
   const same = JSON.stringify({ ...prev, generated: 0 }) === JSON.stringify({ ...next, generated: 0 });
