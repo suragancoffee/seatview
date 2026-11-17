@@ -58,6 +58,19 @@ const DICT = {
   '공연 이름으로 검색': 'Search shows', '공연장 확인됨': 'Venue confirmed', '지난 공연 기준 추정': 'Estimated from past shows',
   '공연장 미확인': 'Venue unknown', '공연장을 골라 주세요': 'Pick the venue', '예매 페이지': 'Tickets',
   '이 공연 시야 보기': 'See the view', '선택한 공연': 'Selected show', '공연 목록으로': 'Back to shows',
+  '♿ 휠체어석': '♿ Wheelchair spaces', '🔗 이 자리 링크 복사': '🔗 Copy link to this seat', '링크를 복사했어요': 'Link copied',
+  '휠체어 관람': 'Wheelchair viewing', '휠체어 관람 · 무대 전체 조망': 'Wheelchair · full stage view', '휠체어 관람 · 전체 조망': 'Wheelchair · overall view',
+  '좌석배치도 기준 1층 맨 뒤(A·C구역 22열 뒤) 12석': '12 spaces at the back of 1F (behind Row 22 of Zones A and C), per the seating chart',
+  '좌석배치도의 장애인석 라인(5~11구역 뒤, 1층 맨 뒤 통로). 기본 무대 배치에서는 무대 정면 쪽이에요.': 'Accessible line on the seating chart (behind Zones 5–11, rear aisle of 1F). It faces the stage in the default layout.',
+  '좌석배치도 기준 2층 남측 20석': '20 spaces on the south side of 2F, per the seating chart',
+  '좌석배치도 기준 22석(F구역 앞, B1·D1구역 무대 쪽)': '22 spaces (in front of Zone F, stage side of Zones B1/D1), per the seating chart',
+  '좌석배치도 기준 7열 끝 3곳': '3 spaces at the ends of Row 7, per the seating chart',
+  '야외 공연장은 도면에 휠체어석 정보가 없어요. 현장 안내를 확인해 주세요.': 'The outdoor venue plans have no wheelchair-space information. Please check on site.',
+  '도면상 휠체어석이 남측 무대 바로 뒤쪽이라 콘서트에서는 무대가 거의 보이지 않아요. 공연마다 휠체어석을 따로 마련하는 경우가 많으니 예매처에 확인해 주세요.': 'On the plans the wheelchair spaces are right behind the south stage, so the stage is barely visible at concerts. Many shows set up separate wheelchair spaces — please check with the ticket seller.',
+  '휠체어 관람 · 시야 제한': 'Wheelchair · restricted view',
+  '이 무대 배치에서는 휠체어석이 무대 뒤쪽이에요. 예매처에 휠체어석 위치를 꼭 확인해 주세요.': 'With this stage layout the wheelchair spaces are behind the stage. Please check the location with the ticket seller.',
+  '이 무대 배치에서는 휠체어석이 무대 측면이에요.': 'With this stage layout the wheelchair spaces are at the side of the stage.',
+  '2층 남서측': '2F Southwest', '2층 남동측': '2F Southeast',
   '공연 기록': 'past shows', '검색 결과가 없어요.': 'No shows found.',
   '최근 공연은 영문 공연정보(공공데이터)에서, 공연장 추정은 국문 공연정보의 지난 공연 기록에서 가져와요. 공연장이 확실하지 않으면 예매 페이지에서 확인해 주세요.':
     'Recent shows come from the English performance data; venue estimates come from past records in the Korean performance data. If unsure, check the ticket page.',
@@ -66,7 +79,7 @@ const DICT = {
 
 // 조합되는 이름용 단어 규칙(긴 것 먼저)
 const WORDS = [
-  [/(\d)층/g, '$1F'], [/([0-9A-Z]+)구역/g, 'Zone $1'], [/([0-9A-Z]+)열/g, 'Row $1'], [/(\d+)번/g, 'Seat $1'],
+  [/(\d)층/g, '$1F'], [/([0-9A-Z~]+)구역/g, 'Zone $1'], [/([0-9A-Z]+)열/g, 'Row $1'], [/(\d+)번/g, 'Seat $1'],
   [/([\d,]+)석/g, '$1 seats'], [/(\d+)건/g, '$1'],
   [/이동식석/g, 'retractable'], [/고정석/g, 'fixed'], [/계단석/g, 'Terrace'], [/무대 앞 스탠딩/g, 'Front standing'],
   [/상단 산책로/g, 'Upper walkway'], [/잔디/g, 'Lawn'], [/북동측/g, 'Northeast'], [/남동측/g, 'Southeast'], [/남서측/g, 'Southwest'],
@@ -79,6 +92,7 @@ const WORDS = [
   [/가구역/g, 'Zone Ga'], [/나구역/g, 'Zone Na'], [/다구역/g, 'Zone Da'],
   [/눈높이 /g, 'Eye level '], [/내려다봄 /g, 'Looking down '], [/올려다봄 /g, 'Looking up '],
   [/ 3D 모델 불러오는 중…/g, ': loading 3D model…'],
+  [/휠체어석/g, 'wheelchair space'], [/ 뒤( |$)/g, ' (behind)$1'], [/ 앞( |$)/g, ' (front)$1'], [/무대 쪽/g, 'stage side'],
 ];
 const NAMES = ['우리금융아트홀', '티켓링크 라이브 아레나', '수변무대', '88잔디마당', '올림픽홀', '뮤즈라이브'];
 

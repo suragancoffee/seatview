@@ -98,6 +98,17 @@
   .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;background:#1b1f27;z-index:5;transition:opacity .4s}
   .loading.hide{opacity:0;pointer-events:none}
   .bar{width:240px;height:6px;border-radius:3px;background:#39404f;overflow:hidden} .bar i{display:block;height:100%;width:0;background:var(--orange);transition:width .2s}
+  .wcbox .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .wcbox .chip.on,.chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .wcbox .evnote{margin-top:2px}
+  .seatmap .seat.wc{fill:#dbe7ff;stroke:#2f62c9;stroke-width:3}
+  .seatmap .seat.wc.sel{fill:var(--orange);stroke:var(--orange)}
+  .seatmap .wcm{fill:#dbe7ff;stroke:#2f62c9;stroke-width:3;cursor:pointer}
+  .seatmap .wcm.sel{fill:var(--orange);stroke:var(--orange)}
+  .seatmap .wct{font-size:22px;pointer-events:none}
+  .share{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .share button{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
+  .share span{font-size:12px;color:var(--muted)}
   [hidden]{display:none!important}
   @media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:52vh auto;height:auto} main{order:-1;height:52vh} aside{border-right:0} .hint{display:none} }
 </style>
@@ -178,6 +189,13 @@
       <div class="field" id="rowField"><label><span id="zoneLabel">구역</span> <b id="row2dLabel">–</b></label><input type="range" id="row2d" min="1" max="10" value="1"></div>
     </section>
 
+    <!-- 휠체어석 -->
+    <section id="wcBox" class="field wcbox" style="gap:6px">
+      <label>♿ 휠체어석</label>
+      <div class="chips" id="wcChips"></div>
+      <div class="evnote" id="wcNote"></div>
+    </section>
+
     <div class="card">
       <div class="seatname" id="seatName">–</div>
       <div class="stat"><small id="lDist">무대 앞까지 거리</small><b id="dist">–</b></div>
@@ -185,6 +203,7 @@
       <div class="stat"><small id="lSize">출연자가 보이는 크기</small><b id="size">–</b></div>
       <div class="stat"><small>추천 대상</small><b id="rec" style="font-size:14px">–</b></div>
       <div class="warn" id="warn"></div>
+      <div class="share"><button id="shareBtn" type="button">🔗 이 자리 링크 복사</button><span id="shareMsg"></span></div>
       <div class="evbanner" id="evBanner"><span>선택한 공연</span><b class="notr" id="evBannerTitle"></b><div class="links"><a id="evBannerLink" href="#" target="_blank" rel="noopener">예매 페이지</a><button id="evBack" type="button">공연 목록으로</button></div></div>
     </div>
 
@@ -223,11 +242,12 @@ import * as I18N from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const state = { venue:'woori', yaw:0, pitch:0, fov:60,
-  woori:{ floor:'1F', zone:'B', row:10 },
-  kspo:{ stage:'end1', zone:'floor', depth:'mid' },
-  hb:{ mode:'concert', zone:'floor', depth:'mid' },
+  woori:{ floor:'1F', zone:'B', row:10, wc:null },
+  kspo:{ stage:'end1', zone:'floor', depth:'mid', wc:null },
+  hb:{ mode:'concert', zone:'floor', depth:'mid', wc:null },
   lake:{ zone:'TC', depth:'mid' }, g88:{ zone:'L0', depth:'mid' },
-  oh:{ zone:'F2', row:3 }, muse:{ seat:'나-3-7' } };
+  oh:{ zone:'F2', row:3, wc:null }, muse:{ seat:'나-3-7' } };
+const DEFAULTS = JSON.parse(JSON.stringify(state));
 
 // ---------------- three.js 기본 ----------------
 const host = $('view');
@@ -489,12 +509,20 @@ function build2d(){
       const cx = z.poly.reduce((a, q) => a + q[0], 0) / z.poly.length, cy = z.poly.reduce((a, q) => a + q[1], 0) / z.poly.length;
       el('text', { x:cx, y:cy + 10, 'text-anchor':'middle', 'font-size': z.id === 'FL' ? 34 : 28 }, z.id === 'FL' ? 'Floor' : z.id);
     }
+    for (const w of info.wheelchair) {
+      const [x, y, wd, ht] = w.rect, r = el('rect', { x, y, width: wd, height: ht, rx: 5, class: 'wcm' }); r.dataset.w = w.id;
+      r.onclick = () => { state.oh.wc = w.id; update(); };
+      const t = document.createElementNS(ns, 'title'); t.textContent = w.label; r.appendChild(t);
+      el('text', { x: x + wd / 2, y: y + ht - 4, 'text-anchor': 'middle', class: 'wct' }, '♿');
+    }
     el('text', { x:195, y:650, 'text-anchor':'middle', 'font-size':26, style:'fill:#6b7487' }, '2F'); el('text', { x:1471, y:650, 'text-anchor':'middle', 'font-size':26, style:'fill:#6b7487' }, '2F');
   } else {
     el('path', { d:'M680 160 Q1176 330 1675 160 L1735 325 Q1176 520 615 325 Z', style:'fill:#dcdfe6' });
     el('text', { x:1176, y:330, 'text-anchor':'middle', 'font-size':64 }, '무 대');
     for (const st of TD.MUSE_SEATS) {
-      const r = el('rect', { x: st.cx - 23, y: st.cy - 25, width: 46, height: 50, rx: 4, class: 'seat' + (st.temp ? ' tmp' : '') }); r.dataset.seat = st.id;
+      const r = st.wc ? el('rect', { x: st.cx - 34, y: st.cy - 34, width: 68, height: 68, rx: 6, class: 'seat wc' })
+        : el('rect', { x: st.cx - 23, y: st.cy - 25, width: 46, height: 50, rx: 4, class: 'seat' + (st.temp ? ' tmp' : '') }); r.dataset.seat = st.id;
+      if (st.wc) el('text', { x: st.cx, y: st.cy + 14, 'text-anchor': 'middle', class: 'wct', 'font-size': 38 }, '♿');
       r.onclick = () => { state.muse.seat = st.id; update(); };
       const t = document.createElementNS(ns, 'title'); t.textContent = st.label + (st.temp ? ' (간이석)' : ''); r.appendChild(t);
     }
@@ -505,9 +533,41 @@ function build2d(){
 }
 $('row2d').oninput = () => { state.oh.row = +$('row2d').value; update(); };
 
+// ---------------- 휠체어석 ----------------
+// 위치는 각 공연장 좌석배치도의 장애인석 표시 기준. 눈높이는 휠체어에 앉은 기준 1.25m
+const WC_EYE = 1.25;
+const WC = {
+  woori: { list: [{ id:'A', label:'1층 A구역 22열 뒤', p:[-42.4, 3.29, -15.2] }, { id:'C', label:'1층 C구역 22열 뒤', p:[-42.4, 3.29, 7.6] }],
+           note: '좌석배치도 기준 1층 맨 뒤(A·C구역 22열 뒤) 12석' },
+  kspo:  { list: K.WHEELCHAIR.map(w => ({ ...w, label: '1층 ' + w.label })), note: '좌석배치도의 장애인석 라인(5~11구역 뒤, 1층 맨 뒤 통로). 기본 무대 배치에서는 무대 정면 쪽이에요.' },
+  hb:    { list: [{ id:'SW', label:'2층 남서측', deg:-112 }, { id:'SE', label:'2층 남동측', deg:-68 }], note: '좌석배치도 기준 2층 남측 20석' },
+  oh:    { list: TD.OH.wheelchair, note: '좌석배치도 기준 22석(F구역 앞, B1·D1구역 무대 쪽)' },
+  muse:  { list: TD.MUSE_SEATS.filter(q => q.wc).map(q => ({ id: q.id, label: q.label.replace(' 휠체어석', '') })), note: '좌석배치도 기준 7열 끝 3곳' },
+};
+function wcSel(){ return state.venue === 'muse' ? (state.muse.seat.endsWith('-wc') ? state.muse.seat : null) : state[state.venue].wc; }
+function buildWc(){
+  const cfg = WC[state.venue];
+  $('wcChips').innerHTML = cfg ? cfg.list.map(w => `<button class="chip" data-w="${w.id}">${w.label}</button>`).join('') : '';
+  $('wcNote').textContent = cfg ? cfg.note : '야외 공연장은 도면에 휠체어석 정보가 없어요. 현장 안내를 확인해 주세요.';
+  $('wcChips').querySelectorAll('button').forEach(b => b.onclick = () => pickWc(b.dataset.w));
+  markWc();
+}
+function pickWc(id){ if (state.venue === 'muse') state.muse.seat = id; else state[state.venue].wc = id; update(); }
+function markWc(){ const cur = wcSel(); $('wcChips').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.w === cur)); }
+// 일반 좌석을 고르면 휠체어석 선택 해제
+for (const id of ['zones','ring','hbRing','seatmap','depthSeg','hbDepth','floorTabs']) $(id).addEventListener('click', e => {
+  if (!e.target.closest('.wcm') && state[state.venue] && 'wc' in state[state.venue]) state[state.venue].wc = null; }, true);
+for (const id of ['rowRange','row2d']) $(id).addEventListener('input', () => { if (state[state.venue] && 'wc' in state[state.venue]) state[state.venue].wc = null; }, true);
+function floorAt(x, z, yGuess){ // 모델 바닥 높이(아래로 레이캐스트)
+  const v = venues[state.venue]; if (!v) return yGuess;
+  const rc = new THREE.Raycaster(new THREE.Vector3(x, yGuess + 1.5, z), new THREE.Vector3(0, -1, 0), 0, 3);
+  const h = rc.intersectObject(v.root.children[0], true)[0]; return h ? h.point.y : yGuess;
+}
+
 // ---------------- 공통: 좌석 선택 → 카메라 ----------------
 let anim = null;
 function seatName(){
+  const wc = wcSel(); if (wc && WC[state.venue]) return WC[state.venue].list.find(w => w.id === wc).label + ' 휠체어석';
   if (state.venue === 'woori') { const s = state.woori; return `${W.ZONES[s.zone].floor === '1F' ? '1층' : '2층'} ${s.zone}구역 ${s.row}열`; }
   if (OUTDOOR[state.venue]) { const s = state[state.venue], o = OUTDOOR[state.venue];
     return `${o.zones.find(z => z.id === s.zone).label} ${({ front:'앞쪽', mid:'가운데', back:'뒤쪽' })[s.depth]}`; }
@@ -526,6 +586,8 @@ function update(instant){
     document.querySelectorAll('#zones .row').forEach(b => b.classList.toggle('sel', b.dataset.zone === s.zone && +b.dataset.row === s.row));
     eye = new THREE.Vector3(...W.seatEye(s.zone, s.row));
     rec = info.floor === '2F' ? '전체 연출·조명 감상' : s.row <= 4 ? '배우 표정·몰입감' : s.row <= 14 ? '균형 잡힌 시야' : '무대 전체 조망';
+    if (s.wc) { const w = WC.woori.list.find(q => q.id === s.wc); eye = new THREE.Vector3(w.p[0], floorAt(w.p[0], w.p[2], w.p[1]) + WC_EYE, w.p[2]); rec = '휠체어 관람 · 무대 전체 조망';
+      document.querySelectorAll('#zones .row').forEach(b => b.classList.remove('sel')); }
   } else if (OUTDOOR[state.venue]) {
     const s = state[state.venue], o = OUTDOOR[state.venue];
     document.querySelectorAll('#outRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
@@ -540,7 +602,10 @@ function update(instant){
     document.querySelectorAll('#hbRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
     $('hbFloor')?.classList.toggle('sel', s.zone === 'floor');
     eye = new THREE.Vector3(...(s.zone === 'floor' ? HB.floorEye(s.depth) : HB.seatEye(s.zone, s.depth)));
-    if (s.zone !== 'floor' && s.zone[0] === 'U' && venues.hb) {
+    if (s.wc) { const w = WC.hb.list.find(q => q.id === s.wc), [x, z] = HB.at(w.deg, HB.ellR(HB.OUT, w.deg) + 1.0);
+      eye = new THREE.Vector3(x, floorAt(x, z, 2.1) + WC_EYE, z);
+      document.querySelectorAll('#hbRing path.z').forEach(p => p.classList.remove('sel')); $('hbFloor')?.classList.remove('sel'); }
+    if (!s.wc && s.zone !== 'floor' && s.zone[0] === 'U' && venues.hb) {
       let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
       for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
         rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
@@ -548,7 +613,9 @@ function update(instant){
       }
       eye.y = Math.max(eye.y, top + 1.2);
     }
-    if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
+    if (s.wc) { rec = '휠체어 관람';
+      if (s.mode === 'concert') { rec = '휠체어 관람 · 시야 제한'; warn = '도면상 휠체어석이 남측 무대 바로 뒤쪽이라 콘서트에서는 무대가 거의 보이지 않아요. 공연마다 휠체어석을 따로 마련하는 경우가 많으니 예매처에 확인해 주세요.'; } }
+    else if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
     else if (s.mode === 'concert' && s.zone === 'US') { rec = '시야 제한 감수'; warn = '무대 바로 뒤쪽 구역이에요. 시야 제한석이거나 판매하지 않을 수 있어요.'; }
     else if (s.mode === 'concert' && (s.zone === 'USE' || s.zone === 'USW')) { rec = '가성비 측면석'; warn = '무대 측면이라 무대 일부와 스크린이 비스듬히 보여요.'; }
     else if (s.mode === 'sports') rec = s.zone[0] === 'L' ? '선수 근거리·생동감' : '경기 흐름·전술 감상';
@@ -558,7 +625,9 @@ function update(instant){
     document.querySelectorAll('#ring path.z').forEach(p => p.classList.toggle('sel', +p.dataset.zone === s.zone));
     $('floorDisk')?.classList.toggle('sel', s.zone === 'floor');
     eye = new THREE.Vector3(...(s.zone === 'floor' ? K.floorEye(s.stage, s.depth) : K.seatEye(s.zone, s.depth)));
-    if (s.zone !== 'floor' && venues.kspo) { // 주변 좌석 단·등받이 높이를 재서 눈높이 보정
+    if (s.wc) { eye = new THREE.Vector3(...K.wheelchairEye(s.wc));
+      document.querySelectorAll('#ring path.z').forEach(p => p.classList.remove('sel')); $('floorDisk')?.classList.remove('sel'); }
+    else if (s.zone !== 'floor' && venues.kspo) { // 주변 좌석 단·등받이 높이를 재서 눈높이 보정
       let top = -9; const rc = new THREE.Raycaster(); rc.far = 9;
       for (const [dx, dz] of [[0,0],[0.9,0],[-0.9,0],[0,0.9],[0,-0.9]]) {
         rc.set(new THREE.Vector3(eye.x + dx, eye.y + 3, eye.z + dz), new THREE.Vector3(0, -1, 0));
@@ -566,7 +635,13 @@ function update(instant){
       }
       eye.y = Math.max(eye.y, top + 1.2);
     }
-    if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
+    if (s.wc) {
+      const st = K.STAGES[s.stage], w = K.WHEELCHAIR.find(q => q.id === s.wc);
+      const bf = st.deg === null ? 0 : 1 - Math.abs(((w.deg - st.deg) % 360 + 540) % 360 - 180) / 180;
+      rec = '휠체어 관람 · 전체 조망';
+      warn = bf > .78 ? '이 무대 배치에서는 휠체어석이 무대 뒤쪽이에요. 예매처에 휠체어석 위치를 꼭 확인해 주세요.'
+        : bf > .55 ? '이 무대 배치에서는 휠체어석이 무대 측면이에요.' : '';
+    } else if (s.zone === 'floor') rec = s.depth === 'front' ? '아티스트 근거리·현장감' : '현장감 + 스크린 병행';
     else {
       const bf = behindFactor(s.zone);
       if (bf > .78) warn = '무대 뒤쪽 구역이에요. 시야 제한석이거나 판매하지 않을 수 있어요.';
@@ -598,6 +673,7 @@ function update(instant){
   $('rec').textContent = rec;
   $('warn').textContent = warn; $('warn').style.display = warn ? 'block' : 'none';
   state.yaw = 0; state.pitch = 0;
+  markWc(); saveHash();
   if (instant) { camera.position.copy(eye); anim = null; } else anim = { t0: performance.now(), from: camera.position.clone(), to: eye };
 }
 
@@ -605,8 +681,9 @@ function update2d(){
   const v = state.venue, info = TWO_D[v];
   let p, name, warn = '', rec = '';
   if (v === 'oh') {
-    const s = state.oh, z = info.zones.find(q => q.id === s.zone);
+    const s = state.oh, z = info.zones.find(q => q.id === s.zone), w = s.wc && info.wheelchair.find(q => q.id === s.wc);
     s.row = Math.max(1, Math.min(z.rows, s.row));
+    document.querySelectorAll('#seatmap .wcm').forEach(e => e.classList.toggle('sel', e.dataset.w === s.wc));
     $('rowField').hidden = false; $('zoneLabel').textContent = z.id === 'FL' ? 'Floor 위치' : '열';
     $('row2d').max = z.rows; $('row2d').value = s.row; $('row2dLabel').textContent = info.rowLabel(z, s.row);
     document.querySelectorAll('#seatmap .zp').forEach(e => e.classList.toggle('sel', e.dataset.zone === s.zone));
@@ -614,12 +691,14 @@ function update2d(){
     if (z.floor === '2F' || (z.split && s.row > z.split)) rec = '전체 연출·조명 감상'; else if (z.id === 'FL') rec = '아티스트 근거리·스탠딩';
     else if (/^[GH]$/.test(z.id)) { rec = '무대 근거리 측면'; warn = '무대 바로 옆이라 무대 안쪽(반대편)이 가려질 수 있어요.'; }
     else rec = p.d < 18 ? '몰입감 있는 근거리' : '균형 잡힌 시야';
+    if (w) { p = w.pos; name = w.label; rec = '휠체어 관람'; warn = /B1|D1/.test(w.id) ? '무대 바로 옆이라 무대 안쪽(반대편)이 가려질 수 있어요.' : '';
+      document.querySelectorAll('#seatmap .zp').forEach(e => e.classList.remove('sel')); $('rowField').hidden = true; }
   } else {
     const st = TD.MUSE_SEATS.find(q => q.id === state.muse.seat);
     $('rowField').hidden = true;
     document.querySelectorAll('#seatmap .seat').forEach(e => e.classList.toggle('sel', e.dataset.seat === st.id));
     p = st.pos; name = st.label + (st.temp ? ' (간이석)' : '');
-    rec = st.temp ? '맨 앞 근거리(간이석)' : st.zone === '나' ? '정면 몰입감' : '측면 근거리';
+    rec = st.wc ? '휠체어 관람' : st.temp ? '맨 앞 근거리(간이석)' : st.zone === '나' ? '정면 몰입감' : '측면 근거리';
     if (st.temp) warn = 'A·B열은 공연에 따라 설치되는 간이 좌석이에요.';
   }
   const S = TD.stats(info.stage, p);
@@ -631,6 +710,7 @@ function update2d(){
   if (!warn && S.side > 45) warn = '무대를 비스듬히 보는 자리예요. 무대 한쪽 끝이 잘 안 보일 수 있어요.';
   $('rec').textContent = rec; $('warn').textContent = warn; $('warn').style.display = warn ? 'block' : 'none';
   $('sketch').innerHTML = TD.sketch(info.stage, p);
+  markWc(); saveHash();
 }
 
 // ---------------- 공연장 전환 ----------------
@@ -638,6 +718,7 @@ async function switchVenue(v){
   state.venue = v;
   const is2d = !!TWO_D[v];
   loadEvents().then(() => showHistory(v));
+  buildWc();
   $('view2d').hidden = !is2d; renderer.domElement.style.visibility = is2d ? 'hidden' : 'visible';
   document.querySelector('.ctrl').hidden = is2d; document.querySelector('.hint').hidden = is2d; document.querySelector('.hud').hidden = is2d; $('ui-2d').hidden = !is2d;
   $('perf').closest('.toggles').hidden = is2d;
@@ -752,9 +833,72 @@ function showHistory(v){
 function applyLangButton(){ $('langBtn').textContent = I18N.lang === 'en' ? '한국어' : 'EN'; }
 $('langBtn').onclick = () => { setLang(I18N.lang === 'en' ? 'ko' : 'en'); applyLangButton(); showHistory(state.venue); };
 
-buildWooriMap();
-const start = ['#kspo','#hb','#lake','#g88','#oh','#muse'].includes(location.hash) ? location.hash.slice(1) : 'woori';
-switchVenue(start).catch(fail);
+// ---------------- 좌석 링크 공유 ----------------
+// 주소 형식: #공연장&키=값&… (예: #kspo&stage=end1&zone=8&depth=front, 휠체어석은 wc=w8, 시선은 y·p·f)
+const VENUE_KEYS = ['woori','kspo','hb','lake','g88','oh','muse'];
+function hashOf(withView){
+  const v = state.venue, parts = [v];
+  for (const [k, val] of Object.entries(state[v])) if (val !== null && val !== undefined) parts.push(k + '=' + encodeURIComponent(val));
+  if (withView && !TWO_D[v]) {
+    if (Math.abs(state.yaw) > .5) parts.push('y=' + Math.round(state.yaw));
+    if (Math.abs(state.pitch) > .5) parts.push('p=' + Math.round(state.pitch));
+    if (state.fov !== 60) parts.push('f=' + Math.round(state.fov));
+  }
+  return '#' + parts.join('&');
+}
+function saveHash(){ if (uiMode !== 'venue') return; try { history.replaceState(null, '', hashOf(false)); } catch (e) {} }
+const VALID = { // 주소에 들어온 값이 실제로 있는 좌석인지 확인
+  woori: s => W.ZONES[s.zone] && W.ZONES[s.zone].floor === s.floor && (!s.wc || WC.woori.list.some(w => w.id === s.wc)),
+  kspo: s => K.STAGES[s.stage] && (s.zone === 'floor' || K.SEATS[s.zone]) && ['front','mid','back'].includes(s.depth) && (!s.wc || K.WHEELCHAIR.some(w => w.id === s.wc)),
+  hb: s => HB.MODES[s.mode] && (s.zone === 'floor' || HB.SECTORS.some(q => q.id === s.zone)) && ['front','mid','back'].includes(s.depth) && (!s.wc || WC.hb.list.some(w => w.id === s.wc)),
+  lake: s => OUTDOOR.lake.zones.some(z => z.id === s.zone) && ['front','mid','back'].includes(s.depth),
+  g88: s => OUTDOOR.g88.zones.some(z => z.id === s.zone) && ['front','mid','back'].includes(s.depth),
+  oh: s => TD.OH.zones.some(z => z.id === s.zone) && s.row >= 1 && (!s.wc || TD.OH.wheelchair.some(w => w.id === s.wc)),
+  muse: s => TD.MUSE_SEATS.some(q => q.id === s.seat),
+};
+function readHash(){
+  const parts = decodeURIComponent(location.hash.slice(1)).split('&'), v = parts[0];
+  if (!VENUE_KEYS.includes(v)) return null;
+  const s = { ...DEFAULTS[v] }, view = {};
+  for (const p of parts.slice(1)) {
+    const i = p.indexOf('='); if (i < 0) continue;
+    const k = p.slice(0, i), val = p.slice(i + 1);
+    if (k === 'y' || k === 'p' || k === 'f') { if (isFinite(+val)) view[k] = +val; continue; }
+    if (!(k in s)) continue;
+    s[k] = /^\d+$/.test(val) && k !== 'seat' && k !== 'wc' ? +val : val;
+  }
+  if (!VALID[v](s)) return { v, view: {} };      // 잘못된 값이면 그 공연장 기본 좌석으로
+  state[v] = s; return { v, view };
+}
+function syncControls(){ // 주소로 복원한 상태를 각 조작부에 반영
+  const s = state.woori;
+  document.querySelectorAll('#floorTabs button').forEach(b => b.classList.toggle('on', b.dataset.floor === s.floor));
+  buildWooriMap();
+  $('stageSel').value = state.kspo.stage; $('hbMode').value = state.hb.mode;
+  document.querySelectorAll('#depthSeg button').forEach(b => b.classList.toggle('on', b.dataset.d === state.kspo.depth));
+  document.querySelectorAll('#hbDepth button').forEach(b => b.classList.toggle('on', b.dataset.d === state.hb.depth));
+  const od = (state[state.venue] && OUTDOOR[state.venue]) ? state[state.venue].depth : 'mid';
+  document.querySelectorAll('#outDepth button').forEach(b => b.classList.toggle('on', b.dataset.d === od));
+}
+$('shareBtn').onclick = async () => {
+  const url = location.origin + location.pathname + hashOf(true);
+  let ok = false;
+  try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {}
+  if (!ok) { const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); }
+  $('shareMsg').textContent = ok ? '링크를 복사했어요' : url;
+  $('shareMsg').classList.toggle('notr', !ok);
+  clearTimeout($('shareMsg')._t); if (ok) $('shareMsg')._t = setTimeout(() => $('shareMsg').textContent = '', 2500);
+};
+
+const fromHash = location.hash === '#shows' ? null : readHash();
+const start = fromHash ? fromHash.v : 'woori';
+state.venue = start; syncControls();
+switchVenue(start).then(() => {
+  const vw = fromHash?.view; if (!vw || TWO_D[start]) return;
+  if (vw.f) setFov(vw.f);
+  state.yaw = vw.y || 0; state.pitch = vw.p || 0;
+}).catch(fail);
 setLang(savedLang()); applyLangButton(); $('venueHist').classList.add('notr');
 if (location.hash === '#shows') setMode('event');
 </script>

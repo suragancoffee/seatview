@@ -39,12 +39,22 @@ function ohPos(z, row) {
   return { x: lerp(z.p0[0], z.p1[0], t), d: lerp(z.p0[1], z.p1[1], t), h };
 }
 
+// 휠체어석(좌석배치도 '장애인석 22석'): F1·F2·F3 맨 앞 줄 앞, B1·D1 무대 쪽 끝. 휠체어 앉은 눈높이 1.25m
+const OH_WC = [
+  { id: 'wF1', label: 'F1구역 앞 휠체어석', rect: [655, 944, 57, 24], pos: { x: -7.5, d: 14.2, h: 1.25 } },
+  { id: 'wF2', label: 'F2구역 앞 휠체어석', rect: [740, 944, 190, 24], pos: { x: 0, d: 14.2, h: 1.25 } },
+  { id: 'wF3', label: 'F3구역 앞 휠체어석', rect: [948, 944, 62, 24], pos: { x: 7.5, d: 14.2, h: 1.25 } },
+  { id: 'wB1', label: 'B1구역 무대 쪽 휠체어석', rect: [424, 838, 50, 26], pos: { x: -10.5, d: 9.2, h: 1.7 } },
+  { id: 'wD1', label: 'D1구역 무대 쪽 휠체어석', rect: [1206, 838, 50, 26], pos: { x: 10.5, d: 9.2, h: 1.7 } },
+];
+
 export const OH = {
   key: 'oh', title: '올림픽홀', seats: '2,432석', viewBox: '40 470 1590 1210',
   stage: { w: 18, hgt: 10, floor: 1.0, depthBehind: 12, svg: [[620,480],[1062,480],[1062,565],[620,565]] },
   mode: 'zone',
   zones: OH_ZONES,
   info: z => (SEATS_OH[z.id] ? `${SEATS_OH[z.id]}석 · ` : '') + z.floor,
+  wheelchair: OH_WC,
   pos: (zoneId, row) => ohPos(OH_ZONES.find(z => z.id === zoneId), row),
   rowLabel: (z, row) => z.id === 'FL' ? ['맨 앞', '앞쪽', '가운데', '뒤쪽', '맨 뒤'][row - 1] : `${row}열${z.split ? (row <= z.split ? ' (1층)' : ' (2층)') : ''}`,
 };
@@ -71,6 +81,12 @@ for (const [row, zone, x0, y, n] of MUSE) for (let i = 0; i < n; i++) {
     id: `${zone}-${row}-${i + 1}`, label: `${zone}구역 ${row}열 ${i + 1}번`, zone, row, cx, cy: y, temp: !raked,
     pos: { x: (cx - 1176) / 100, d: 1.6 + ri * 0.92, h: 1.15 + (raked ? (ri - 1.4) * 0.2 : 0) },
   });
+}
+// 휠체어석 3곳(좌석배치도 7열 끝의 휠체어 표시). 7열 바닥 높이 + 휠체어 앉은 눈높이 1.25m
+for (const [zone, cx] of [['가', 573], ['나', 1549], ['다', 1786]]) {
+  const ri = ROW_INDEX[7] + 0.3;
+  MUSE_SEATS.push({ id: `${zone}-wc`, label: `${zone}구역 7열 휠체어석`, zone, row: '7', cx, cy: 1186, temp: false, wc: true,
+    pos: { x: (cx - 1176) / 100, d: 1.6 + ri * 0.92, h: 1.25 + (ROW_INDEX[7] - 1.4) * 0.2 } });
 }
 export const MUSE_INFO = {
   key: 'muse', title: '뮤즈라이브', seats: '237석(가변석 포함)', viewBox: '200 120 1960 1180',
