@@ -30,6 +30,29 @@
   .sk{display:flex;gap:14px;align-items:center;padding:8px 16px 16px;flex-wrap:wrap}
   .sk svg{width:min(560px,100%);aspect-ratio:16/9;border-radius:12px;background:#11141b;display:block}
   .sk p{margin:0;font-size:12px;color:#6b7487;max-width:300px;line-height:1.6}
+  .brand{position:relative}
+  #langBtn{position:absolute;right:0;top:0;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer}
+  .modes{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:10px}
+  .modes button{flex:1;border:0;background:transparent;padding:9px 0;border-radius:7px;font:inherit;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
+  .modes button.on{background:var(--navy);color:#fff}
+  .vhist{font-size:11.5px;color:var(--muted);margin-top:-6px}
+  #evSearch{width:100%;font:inherit;font-size:13px;padding:9px 11px;border-radius:8px;border:1.5px solid var(--line)}
+  .evlist{display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto;padding-right:2px}
+  .ev{border:1px solid var(--line);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:5px;background:#fff}
+  .ev .top{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted)}
+  .ev .ttl{font-size:13px;font-weight:700;line-height:1.35;color:var(--ink)}
+  .ev .nof{font-size:11px;color:var(--muted)}
+  .chip.hint1{border-color:var(--navy);border-style:dashed}
+  .ev .row2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .badge{font-size:11px;border-radius:999px;padding:2px 8px;font-weight:700}
+  .badge.ok{background:#e5f4ea;color:#1d6b3a} .badge.est{background:#fff4e6;color:#9a5200} .badge.no{background:#eef0f4;color:#5b6478}
+  .ev button.go,.ev a.tk,.chip{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:4px 9px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;text-decoration:none}
+  .ev button.go{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .evnote{font-size:11px;color:var(--muted);line-height:1.55}
+  .evbanner{grid-column:1/-1;background:#eef3fc;border-radius:8px;padding:8px 10px;font-size:12px;display:none;flex-direction:column;gap:4px}
+  .evbanner b{font-size:13px;color:var(--navy)}
+  .evbanner .links{display:flex;gap:10px} .evbanner a,.evbanner button{font-size:12px;color:var(--blue);background:none;border:0;padding:0;cursor:pointer;font:inherit;font-weight:700;text-decoration:underline}
   .tabs{display:flex;gap:6px;background:var(--bg);padding:4px;border-radius:10px}
   .tabs button{flex:1;border:0;background:transparent;padding:8px 0;border-radius:7px;font:inherit;font-weight:700;font-size:13px;color:var(--muted);cursor:pointer}
   .tabs button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -84,10 +107,21 @@
   <aside>
     <div class="brand">
       <small>KSPO 공공데이터 활용 · 실감형 콘텐츠</small>
+      <button id="langBtn" type="button">EN</button>
       <h1>내 자리 미리보기</h1>
       <p>올림픽공원 공연장 3D 모델로, 예매 전에 내 좌석에서 무대가 어떻게 보이는지 확인하세요.</p>
     </div>
 
+    <div class="modes" id="modeTabs"><button data-m="venue" class="on">공연장으로 찾기</button><button data-m="event">공연으로 찾기</button></div>
+
+    <!-- 공연으로 찾기 -->
+    <section id="ui-events" class="field" style="gap:10px" hidden>
+      <input id="evSearch" type="search" placeholder="공연 이름으로 검색" autocomplete="off">
+      <div class="evlist" id="evList"></div>
+      <div class="evnote"><span>최근 공연은 영문 공연정보(공공데이터)에서, 공연장 추정은 국문 공연정보의 지난 공연 기록에서 가져와요. 공연장이 확실하지 않으면 예매 페이지에서 확인해 주세요.</span> <span>날짜는 데이터에 기록된 공연일자예요.</span></div>
+    </section>
+
+    <div id="venueWrap" class="field" style="gap:8px">
     <div class="venues" id="venues">
       <button data-v="woori" class="on">우리금융아트홀<small>1,185석 · 공연장형</small></button>
       <button data-v="kspo" title="52개 구역 13,948석 + 휠체어석 82 + BOX석 121">KSPO DOME<small>14,151석 · 아레나형</small></button>
@@ -96,6 +130,8 @@
       <button data-v="g88">88잔디마당<small>야외 · 잔디 관람</small></button>
       <button data-v="oh">올림픽홀 <em class="tag">2D</em><small>2,432석 · 3D 미개방</small></button>
       <button data-v="muse">뮤즈라이브 <em class="tag">2D</em><small>237석 · 3D 미개방</small></button>
+    </div>
+    <div class="vhist" id="venueHist"></div>
     </div>
 
     <!-- 우리금융아트홀 -->
@@ -149,6 +185,7 @@
       <div class="stat"><small id="lSize">출연자가 보이는 크기</small><b id="size">–</b></div>
       <div class="stat"><small>추천 대상</small><b id="rec" style="font-size:14px">–</b></div>
       <div class="warn" id="warn"></div>
+      <div class="evbanner" id="evBanner"><span>선택한 공연</span><b class="notr" id="evBannerTitle"></b><div class="links"><a id="evBannerLink" href="#" target="_blank" rel="noopener">예매 페이지</a><button id="evBack" type="button">공연 목록으로</button></div></div>
     </div>
 
     <div class="toggles"><label><input type="checkbox" id="perf" checked> 무대에 출연자(키 175cm) 세워보기</label></div>
@@ -181,6 +218,8 @@ import * as K from './kspo.js';
 import * as HB from './hb.js';
 import { OUTDOOR, eyeOf as outEye, at as outAt } from './outdoor.js';
 import * as TD from './twod.js';
+import { setLang, savedLang, lang as _lang } from './i18n.js';
+import * as I18N from './i18n.js';
 
 const $ = id => document.getElementById(id);
 const state = { venue:'woori', yaw:0, pitch:0, fov:60,
@@ -598,6 +637,7 @@ function update2d(){
 async function switchVenue(v){
   state.venue = v;
   const is2d = !!TWO_D[v];
+  loadEvents().then(() => showHistory(v));
   $('view2d').hidden = !is2d; renderer.domElement.style.visibility = is2d ? 'hidden' : 'visible';
   document.querySelector('.ctrl').hidden = is2d; document.querySelector('.hint').hidden = is2d; document.querySelector('.hud').hidden = is2d; $('ui-2d').hidden = !is2d;
   $('perf').closest('.toggles').hidden = is2d;
@@ -648,9 +688,75 @@ renderer.setAnimationLoop(now => {
   renderer.render(scene, camera);
 });
 
+
+// ---------------- 공연으로 찾기 (영문 공연정보 + 국문 공연정보) ----------------
+const VNAME = { woori:'우리금융아트홀', kspo:'KSPO DOME', hb:'티켓링크 라이브 아레나', lake:'수변무대', g88:'88잔디마당', oh:'올림픽홀', muse:'뮤즈라이브' };
+let EVENTS = null, currentEvent = null, uiMode = 'venue';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+async function loadEvents(){
+  if (EVENTS) return EVENTS;
+  try { EVENTS = await (await fetch('data/events.json')).json(); } catch (e) { EVENTS = { events: [], history: {} }; }
+  return EVENTS;
+}
+function renderEvents(){
+  const q = $('evSearch').value.trim().toUpperCase(), list = $('evList');
+  const rows = (EVENTS?.events || []).filter(e => !q || e.title.toUpperCase().includes(q)).slice(0, 80);
+  if (!rows.length) { list.innerHTML = '<div class="evnote">검색 결과가 없어요.</div>'; return; }
+  list.innerHTML = rows.map((e, i) => {
+    const idx = EVENTS.events.indexOf(e);
+    const badge = e.basis === 'title' ? `<span class="badge ok">공연장 확인됨</span>`
+      : e.basis === 'history' && e.n >= 2 ? `<span class="badge est">지난 공연 기준 추정</span><span class="notr nof">${e.n}/${e.of}</span>`
+      : e.basis === 'history' ? `<span class="badge no">공연장 미확인</span>`
+      : `<span class="badge no">공연장 미확인</span>`;
+    const sure = e.venue && (e.basis === 'title' || e.n >= 2);
+    const order = ['kspo','hb','oh','woori','muse','g88','lake'].sort((a, b) => (b === e.venue) - (a === e.venue));
+    const act = sure
+      ? `<span class="vname">${VNAME[e.venue]}</span><button class="go" data-i="${idx}" data-v="${e.venue}">이 공연 시야 보기</button>`
+      : `<div class="chips"><span class="evnote">공연장을 골라 주세요</span>${order.map(v => `<button class="chip${v === e.venue ? ' hint1' : ''}" data-i="${idx}" data-v="${v}">${VNAME[v]}</button>`).join('')}</div>`;
+    return `<div class="ev"><div class="top"><span>${esc(e.date)}</span>${badge}</div><div class="ttl notr">${esc(e.title)}</div>
+      <div class="row2">${act}${e.url ? `<a class="tk" href="${esc(e.url)}" target="_blank" rel="noopener">예매 페이지</a>` : ''}</div></div>`;
+  }).join('');
+  list.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => pickEvent(+b.dataset.i, b.dataset.v));
+}
+function setMode(m){
+  uiMode = m;
+  document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  $('ui-events').hidden = m !== 'event';
+  $('venueWrap').hidden = m !== 'venue';
+  for (const id of ['ui-woori','ui-kspo','ui-hb','ui-out','ui-2d']) { const el = $(id); if (m === 'event') { el.dataset.wasHidden = el.hidden ? '1' : ''; el.hidden = true; } }
+  if (m === 'venue') switchVenue(state.venue).catch(fail);
+  else loadEvents().then(renderEvents);
+}
+document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+$('evSearch').oninput = () => renderEvents();
+function pickEvent(i, v){
+  currentEvent = EVENTS.events[i];
+  $('evBannerTitle').textContent = currentEvent.title;
+  $('evBannerLink').href = currentEvent.url || '#';
+  $('evBanner').style.display = 'flex';
+  // KSPO DOME 공연은 엔드 무대가 일반적이라 기본 배치를 유지, 티켓링크 아레나는 콘서트 모드로
+  if (v === 'hb' && state.hb.mode !== 'concert') { state.hb.mode = 'concert'; $('hbMode').value = 'concert'; }
+  state.venue = v;
+  setMode('venue');
+}
+$('evBack').onclick = () => { $('evBanner').style.display = 'none'; currentEvent = null; setMode('event'); };
+
+function showHistory(v){
+  const n = EVENTS?.history?.[v];
+  $('venueHist').textContent = !n ? '' : I18N.lang === 'en'
+    ? `${n.toLocaleString()} past shows in public performance data (to 2024)`
+    : `공공데이터 공연 기록 ${n.toLocaleString()}건 (국문 공연정보, ~2024년)`;
+}
+
+// ---------------- 한/영 전환 ----------------
+function applyLangButton(){ $('langBtn').textContent = I18N.lang === 'en' ? '한국어' : 'EN'; }
+$('langBtn').onclick = () => { setLang(I18N.lang === 'en' ? 'ko' : 'en'); applyLangButton(); showHistory(state.venue); };
+
 buildWooriMap();
 const start = ['#kspo','#hb','#lake','#g88','#oh','#muse'].includes(location.hash) ? location.hash.slice(1) : 'woori';
 switchVenue(start).catch(fail);
+setLang(savedLang()); applyLangButton(); $('venueHist').classList.add('notr');
+if (location.hash === '#shows') setMode('event');
 </script>
 </body>
 </html>
