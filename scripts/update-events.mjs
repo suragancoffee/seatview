@@ -29,16 +29,22 @@ export function parseCsv(text) {
 
 // 칸 이름이 바뀌어도 동작하도록 값의 모양으로 날짜·링크·제목 칸을 찾음
 export function enRowsFromCsv(text) {
-  const rows = parseCsv(text.replace(/^﻿/, ''));
-  const body = rows.slice(1);
+  const rows = parseCsv(text.replace(/^\uFEFF/, ''));
+  const head = rows[0].map(h => h.trim()), body = rows.slice(1);
   const ncol = Math.max(...rows.map(r => r.length));
+  const byName = re => head.findIndex(h => re.test(h));
+  // 1순위: 칸 이름(공연제목·공연일자·상세주소), 2순위: 값의 모양
   const score = (test) => [...Array(ncol).keys()].map(i => body.filter(r => test((r[i] || '').trim())).length);
   const best = arr => arr.indexOf(Math.max(...arr));
-  const dateCol = best(score(v => /^\d{4}[-.\/]?\d{2}[-.\/]?\d{2}/.test(v)));
-  const urlCol = best(score(v => /^https?:\/\//i.test(v)));
-  const avgLen = [...Array(ncol).keys()].map(i => i === dateCol || i === urlCol ? -1
-    : body.reduce((s, r) => s + ((r[i] || '').length), 0) / (body.length || 1));
-  const titleCol = best(avgLen);
+  let dateCol = byName(/공연일자|일자|DATE/i); if (dateCol < 0) dateCol = best(score(v => /^\d{4}[-.\/]?\d{2}[-.\/]?\d{2}/.test(v)));
+  let urlCol = byName(/상세주소|예매|URL|LINK/i); if (urlCol < 0) urlCol = best(score(v => /^https?:\/\//i.test(v)));
+  let titleCol = byName(/공연제목|공연명|제목|TITLE/i);
+  if (titleCol < 0) {
+    const urlish = score(v => /^https?:\/\//i.test(v));
+    const avgLen = [...Array(ncol).keys()].map(i => i === dateCol || urlish[i] > body.length / 2 ? -1
+      : body.reduce((s, r) => s + ((r[i] || '').length), 0) / (body.length || 1));
+    titleCol = best(avgLen);
+  }
   return body.map(r => {
     const d = (r[dateCol] || '').trim().replace(/[.\/]/g, '-');
     const date = /^\d{8}/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : d.slice(0, 10);
