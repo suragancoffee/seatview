@@ -69,7 +69,10 @@ async function fetchEnglishCsv() {
   const buf = new Uint8Array(await res.arrayBuffer());
   let text = new TextDecoder('euc-kr').decode(buf);       // 이 파일은 EUC-KR
   if (/�/.test(text.slice(0, 2000))) text = new TextDecoder('utf-8').decode(buf);
-  return enRowsFromCsv(text);
+  const rows = enRowsFromCsv(text);
+  console.log(`영문 CSV ${buf.length}바이트, ${rows.length}행. 앞부분:`, JSON.stringify(text.slice(0, 300)));
+  console.log('예시 행:', JSON.stringify(rows.slice(0, 3)));
+  return rows;
 }
 
 // ---------- 국문 공연정보 API ----------
@@ -85,6 +88,7 @@ async function fetchKorean(key) {
     const total = +tag(xml, 'totalCount') || 0;
     if (!items.length || rows.length >= total) break;
   }
+  console.log(`국문 공연정보 ${rows.length}건`);
   return rows;
 }
 
