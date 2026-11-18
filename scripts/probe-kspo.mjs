@@ -1,18 +1,17 @@
-// 연계 데이터(API_CPM_009) 구조 확인 (키는 깃허브 Secret으로만 받음)
-const UA = { 'User-Agent': 'seatview data probe', Accept: 'application/json' };
-const LINK = process.env.KCISA_LINK_KEY;
-const get = async (url, ms = 90000) => { const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { headers: UA, signal: c.signal }); return [r.status, await r.text()]; } catch (e) { return [0, String(e)]; } finally { clearTimeout(t); } };
-let all = [], total;
-for (let p = 1; p <= 4; p++) {
-  const [s, t] = await get(`https://api.kcisa.kr/openapi/API_CPM_009/request?serviceKey=${LINK}&numOfRows=500&pageNo=${p}&keyword=`);
-  if (s !== 200) { console.log('page', p, s, t.slice(0, 200)); continue; }
-  const b = JSON.parse(t).response.body; total = b.totalCount; const it = b.items?.item || []; all.push(...it);
-  console.log('page', p, it.length, 'total', total);
-}
-console.log('필드', JSON.stringify(Object.keys(all[0] || {})));
-const kinds = {}; for (const i of all) { const k = (i.TITLE || '').replace(/^\d{8}\s*/, ''); kinds[k] = (kinds[k] || 0) + 1; }
-console.log('제목 유형', JSON.stringify(kinds));
-for (const k of Object.keys(kinds)) { const ex = all.find(i => (i.TITLE || '').replace(/^\d{8}\s*/, '') === k); console.log('\n예시', k, JSON.stringify(ex).slice(0, 1500)); }
-const longest = all.filter(i => i.DESCRIPTION).sort((a, b) => b.DESCRIPTION.length - a.DESCRIPTION.length)[0];
-console.log('\nDESCRIPTION 최장', longest ? longest.DESCRIPTION.slice(0, 2500) : '없음');
+// 주차장 혼잡도 정보(15164156, 파일데이터) 구조 확인
+const UA = { 'User-Agent': 'Mozilla/5.0 (seatview data probe)' };
+const PK = '15164156';
+const page = await (await fetch(`https://www.data.go.kr/data/${PK}/fileData.do`, { headers: UA })).text();
+const ids = [...new Set(page.match(/uddi:[0-9a-f-]{20,}[_0-9]*/gi) || [])]; console.log('uddi', ids);
+const meta = await (await fetch('https://www.data.go.kr/tcs/dss/selectFileDataDownload.do', { method: 'POST',
+  headers: { ...UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ publicDataPk: PK, publicDataDetailPk: ids[0], fileDetailSn: '1' }) })).json();
+const atch = meta.atchFileId || meta?.fileDataRegistVO?.atchFileId, sn = meta.fileDetailSn || meta?.fileDataRegistVO?.fileDetailSn || '1';
+console.log('atch', atch, sn);
+const lim = await (await fetch('https://www.data.go.kr/cmm/cmm/check-limit.json', { method: 'POST', headers: { ...UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ atchFileId: atch, fileDetailSn: sn }) })).json().catch(() => ({}));
+if (lim.needCaptcha) { console.log('보안문자 요구 — 중단'); process.exit(0); }
+const buf = new Uint8Array(await (await fetch(`https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=${atch}&fileDetailSn=${sn}&dataNm=p`, { headers: UA })).arrayBuffer());
+let text = new TextDecoder('euc-kr').decode(buf); if (/�/.test(text.slice(0, 2000))) text = new TextDecoder('utf-8').decode(buf);
+const lines = text.split(/\r?\n/).filter(Boolean);
+console.log('bytes', buf.length, 'lines', lines.length); console.log(lines.slice(0, 8).join('\n')); console.log('...'); console.log(lines.slice(-5).join('\n'));
+const cols = lines[0].split(','); const by = (i) => { const m = {}; for (const l of lines.slice(1)) { const v = l.split(',')[i]; m[v] = (m[v] || 0) + 1; } return m; };
+for (let i = 0; i < cols.length; i++) { const m = by(i); const k = Object.keys(m); console.log(cols[i], '고유값', k.length, k.length < 40 ? JSON.stringify(m) : k.slice(0, 5).join(' / ')); }
