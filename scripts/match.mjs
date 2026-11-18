@@ -1,4 +1,5 @@
-// 영문 공연정보(날짜·제목·예매링크, 공연장 없음) + 국문 공연정보(제목·공연장, ~2024년)를 엮어
+// 영문 공연정보(날짜·제목·예매링크, 공연장 없음) + 국문 공연정보(제목·공연장, ~2024년)
+// + 올림픽공원 대관정보(행사명·장소, 2013~2022년)를 엮어
 // 공연마다 공연장을 정한다. 브라우저와 Node(GitHub Actions) 양쪽에서 같은 코드로 돈다.
 
 // 국문 공연정보의 공연장 표기 → 사이트의 공연장 키
@@ -7,7 +8,7 @@ export function venueOfKo(r) {
   if (/KspoDome|체조/i.test(v)) return 'kspo';
   if (/핸드볼/.test(v)) return 'hb';
   if (/올림픽홀/.test(v)) return 'oh';
-  if (/우리금융|K-아트홀/.test(v)) return 'woori';   // K-아트홀은 우리금융아트홀의 옛 이름
+  if (/우리금융|K-?아트홀/.test(v)) return 'woori';   // K아트홀(K-아트홀)은 우리금융아트홀의 옛 이름
   if (/뮤즈라이브/.test(v)) return 'muse';
   const a = /88\s*잔디/.test(s), b = /수변/.test(s);
   if (!/,/.test(s)) { if (a && !b) return 'g88'; if (b && !a) return 'lake'; }

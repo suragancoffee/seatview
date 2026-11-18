@@ -19,6 +19,7 @@ jobs:
       - name: 공공데이터 받아서 data/events.json 만들기
         env:
           KCISA_KEY: ${{ secrets.KCISA_KEY }}
+          KCISA_RENT_KEY: ${{ secrets.KCISA_RENT_KEY }}
         run: node scripts/update-events.mjs
       - name: 바뀐 내용이 있으면 커밋
         run: |

@@ -98,16 +98,39 @@ async function fetchKorean(key) {
   return rows;
 }
 
+// ---------- 올림픽공원 대관정보 API (행사명·장소, 날짜 없음) ----------
+// 1초에 1번 미만으로 호출해야 해서 쉬어 가며 받음
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function fetchRental(key) {
+  const rows = [];
+  for (let page = 1; page <= 20; page++) {
+    if (page > 1) await sleep(2500);
+    const res = await fetch(`https://api.kcisa.kr/openapi/service/rest/meta12/getKSCD0803?serviceKey=${encodeURIComponent(key)}&numOfRows=100&pageNo=${page}`,
+      { headers: { ...UA, Accept: 'application/json' } });
+    if (!res.ok) throw new Error('대관정보 응답 ' + res.status);
+    const items = JSON.parse(await res.text()).response.body.items?.item || [];
+    for (const it of items) rows.push({ title: it.title || '', venue: it.spatial || '', spatial: '', source: 'rent' });
+    if (items.length < 100) break;
+  }
+  console.log(`대관정보 ${rows.length}건`);
+  return rows;
+}
+
 async function main() {
   const key = process.env.KCISA_KEY;
   if (!key) throw new Error('KCISA_KEY 환경변수가 없습니다 (깃허브 Settings → Secrets 에 등록)');
-  const [en, ko] = await Promise.all([fetchEnglishCsv(), fetchKorean(key)]);
-  const out = buildEvents(en, ko, { since: '2025-01-01' });
+  const rentKey = process.env.KCISA_RENT_KEY;
+  const [en, ko, rent] = await Promise.all([fetchEnglishCsv(), fetchKorean(key), rentKey ? fetchRental(rentKey) : Promise.resolve([])]);
+  // 같은 행사가 두 데이터에 모두 있으면 한 번만 셈(제목 정규화 + 공연장)
+  const seen = new Set(ko.map(r => r.title.replace(/\s+/g, '').toUpperCase()));
+  const rentNew = rent.filter(r => !seen.has(r.title.replace(/\s+/g, '').toUpperCase()));
+  const out = buildEvents(en, [...ko, ...rentNew], { since: '2025-01-01' });
+  out.totalRent = rent.length;
   if (out.events.length < 20) throw new Error(`공연이 ${out.events.length}개뿐 — 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const histTotal = Object.values(out.history).reduce((a, b) => a + b, 0);
-  if (histTotal < out.totalKo * 0.5) throw new Error(`공연장 기록이 ${histTotal}건뿐 — 국문 데이터 형식이 바뀐 것 같아 저장하지 않음`);
+  if (histTotal < (ko.length) * 0.5) throw new Error(`공연장 기록이 ${histTotal}건뿐 — 국문 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const prev = JSON.parse(await readFile(OUT, 'utf8').catch(() => '{}'));
-  const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID }, ...out };
+  const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID, rent: '15015212' }, ...out };
   const same = JSON.stringify({ ...prev, generated: 0 }) === JSON.stringify({ ...next, generated: 0 });
   if (same) { console.log('변경 없음'); return; }
   await writeFile(OUT, JSON.stringify(next));

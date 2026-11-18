@@ -826,8 +826,8 @@ $('evBack').onclick = () => { $('evBanner').style.display = 'none'; currentEvent
 function showHistory(v){
   const n = EVENTS?.history?.[v];
   $('venueHist').textContent = !n ? '' : I18N.lang === 'en'
-    ? `${n.toLocaleString()} past shows in public performance data (to 2024)`
-    : `공공데이터 공연 기록 ${n.toLocaleString()}건 (국문 공연정보, ~2024년)`;
+    ? `${n.toLocaleString()} past shows in public performance & venue-rental data (to 2024)`
+    : `공공데이터 공연 기록 ${n.toLocaleString()}건 (공연정보·대관정보, ~2024년)`;
 }
 
 // ---------------- 한/영 전환 ----------------
