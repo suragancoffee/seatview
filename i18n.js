@@ -71,6 +71,9 @@ const DICT = {
   '이 무대 배치에서는 휠체어석이 무대 뒤쪽이에요. 예매처에 휠체어석 위치를 꼭 확인해 주세요.': 'With this stage layout the wheelchair spaces are behind the stage. Please check the location with the ticket seller.',
   '이 무대 배치에서는 휠체어석이 무대 측면이에요.': 'With this stage layout the wheelchair spaces are at the side of the stage.',
   '2층 남서측': '2F Southwest', '2층 남동측': '2F Southeast',
+  '열': 'Row', 'Floor 위치': 'Floor position',
+  '데이터: 한국체육산업개발(주) 「올림픽공원 공연장 실감형 콘텐츠」(공공데이터포털) · 각 공연장 좌석배치도.': 'Data: Korea Sports Promotion (KSPO) "Olympic Park venue immersive content" (data.go.kr) · venue seating charts.',
+  '원본 3D 모델(우리금융아트홀 170MB, KSPO DOME 476MB, 티켓링크 라이브 아레나 79MB, 수변무대 25MB, 88잔디마당 11MB)을 웹용으로 경량화했습니다. 올림픽홀·뮤즈라이브는 3D 데이터가 공개되지 않아 좌석배치도·평면도 기반 2D 추정 모드로 제공합니다. 좌석 위치는 근사값이며 실제 시야와 다를 수 있습니다. 아레나형 공연장의 무대·스크린은 예시 배치이며, 티켓링크 라이브 아레나의 이동식 좌석과 무대는 대관 도면(인출 시 42.1×31.2m, 무대설치구간 30×18m)을 바탕으로 만들었습니다.': 'The original 3D models (Woori Financial Art Hall 170MB, KSPO DOME 476MB, Ticketlink Live Arena 79MB, Lakeside Stage 25MB, 88 Lawn 11MB) were optimized for the web. Olympic Hall and Muse Live have no public 3D data, so they use a 2D estimate based on seating charts and floor plans. Seat positions are approximate and may differ from the real view. Arena stages and screens are example layouts; Ticketlink Live Arena retractable seats and stage are built from the rental drawings (42.1×31.2m when extended, 30×18m stage area).',
   '공연 기록': 'past shows', '검색 결과가 없어요.': 'No shows found.',
   '최근 공연은 영문 공연정보(공공데이터)에서, 공연장 추정은 국문 공연정보의 지난 공연 기록에서 가져와요. 공연장이 확실하지 않으면 예매 페이지에서 확인해 주세요.':
     'Recent shows come from the English performance data; venue estimates come from past records in the Korean performance data. If unsure, check the ticket page.',
