@@ -594,8 +594,10 @@ function update(instant){
     const s = state[state.venue], o = OUTDOOR[state.venue];
     document.querySelectorAll('#outRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
     const e = outEye(o, s.zone, s.depth); eye = new THREE.Vector3(...e.pos);
-    const rc = new THREE.Raycaster(new THREE.Vector3(eye.x, o.stageY + 5, eye.z), new THREE.Vector3(0, -1, 0), 0, 9);
-    const h = venues[state.venue] && rc.intersectObject(venues[state.venue].root.children[0], true)[0];
+    // 높은 곳(무대+20m)에서 아래로 쏘고, 위를 향한 평평한 면(땅·계단 단)만 바닥으로 인정 — 높은 산책로·나무 대응
+    const rc = new THREE.Raycaster(new THREE.Vector3(eye.x, o.stageY + 20, eye.z), new THREE.Vector3(0, -1, 0), 0, 30);
+    const hits = venues[state.venue] ? rc.intersectObject(venues[state.venue].root.children[0], true) : [];
+    const h = hits.find(q => q.face && Math.abs(q.face.normal.clone().transformDirection(q.object.matrixWorld).y) > 0.7);
     eye.y = (h ? h.point.y : o.stageY - 0.2) + e.eye;
     const zl = o.zones.find(z => z.id === s.zone);
     rec = zl.eye < 1 ? '피크닉·여유로운 관람' : zl.eye < 1.3 ? (s.depth === 'front' ? '무대 근거리 착석' : '편안한 착석 관람') : '자유로운 스탠딩';

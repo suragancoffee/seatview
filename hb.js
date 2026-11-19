@@ -26,6 +26,7 @@ function ellR([a, b], deg) { const t = deg * Math.PI / 180; return a * b / Math.
 function at(deg, r) { const t = deg * Math.PI / 180; return [C[0] + r * Math.cos(t), C[1] - r * Math.sin(t)]; }
 
 const DEPTH = { front: 0.15, mid: 0.5, back: 0.85 };
+const ADJ = { UN: { front: [4, 2.5], back: [4, 9.5] }, UE: { front: [4, 3.5] }, US: { back: [20, 10.5] } };
 export function seatEye(sector, depth) {
   const s = SECTORS.find(x => x.id === sector);
   if (s.ring === 'lower') {
@@ -33,8 +34,10 @@ export function seatEye(sector, depth) {
     const [x, z] = at(s.deg, r0 + (r1 - r0) * f);
     return [x, FLOOR_Y + stepTop(f) + 0.45 + 0.75, z];
   }
-  const d = { front: 3.5, mid: 7.5, back: 11.5 }[depth];
-  const [x, z] = at(s.deg, ellR(OUT, s.deg) + d);
+  // 모델에서 바로 앞이 벽·출입구·구조물에 막히는 자리는 몇 도 옆 / 한두 줄 앞으로 옮김(삼각형 광선 검사 + 렌더링으로 확인)
+  const [da, dd] = (ADJ[sector] || {})[depth] || [0, null];
+  const d = dd ?? { front: 3.5, mid: 7.5, back: 11.5 }[depth];
+  const [x, z] = at(s.deg + da, ellR(OUT, s.deg + da) + d);
   return [x, 2.1 + Math.max(0, d - 1.5) * 0.47 + 1.15, z];
 }
 export function floorEye(depth) { // 콘서트 플로어(무대 앞)
