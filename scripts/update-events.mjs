@@ -52,17 +52,17 @@ export function enRowsFromCsv(text) {
   });
 }
 
-// ---------- 영문 공연정보 CSV 내려받기 (공공데이터포털 파일데이터 다운로드 절차) ----------
-async function fetchEnglishCsv() {
-  const page = await (await fetch(`https://www.data.go.kr/data/${EN_PK}/fileData.do`, { headers: UA })).text();
-  const m = page.match(/uddi:[0-9a-f-]{20,}/i);
-  if (!m) throw new Error('데이터 상세 ID(uddi)를 찾지 못함');
-  const body = new URLSearchParams({ publicDataPk: EN_PK, publicDataDetailPk: m[0], fileDetailSn: '1' });
+// ---------- 공공데이터포털 파일데이터 내려받기 ----------
+async function downloadFileData(pk) {
+  const page = await (await fetch(`https://www.data.go.kr/data/${pk}/fileData.do`, { headers: UA })).text();
+  const m = page.match(/uddi:[0-9a-f-]{20,}[_0-9]*/i);
+  if (!m) throw new Error(`${pk}: 데이터 상세 ID(uddi)를 찾지 못함`);
+  const body = new URLSearchParams({ publicDataPk: pk, publicDataDetailPk: m[0], fileDetailSn: '1' });
   const meta = await (await fetch('https://www.data.go.kr/tcs/dss/selectFileDataDownload.do', {
     method: 'POST', headers: { ...UA, 'Content-Type': 'application/x-www-form-urlencoded' }, body })).json();
   const atch = meta.atchFileId || meta?.fileDataRegistVO?.atchFileId;
   const sn = meta.fileDetailSn || meta?.fileDataRegistVO?.fileDetailSn || '1';
-  if (!atch) throw new Error('atchFileId 없음: ' + JSON.stringify(meta).slice(0, 200));
+  if (!atch) throw new Error(`${pk}: atchFileId 없음 ` + JSON.stringify(meta).slice(0, 200));
   // 다운로드 한도 확인: 보안문자(captcha)를 요구하면 우회하지 않고 이번 갱신을 건너뜀
   try {
     const lim = await (await fetch('https://www.data.go.kr/cmm/cmm/check-limit.json', {
@@ -70,15 +70,45 @@ async function fetchEnglishCsv() {
       body: new URLSearchParams({ atchFileId: atch, fileDetailSn: sn }) })).json();
     if (lim.needCaptcha) throw new Error('보안문자 요구 — 이번 달 갱신 건너뜀');
   } catch (e) { if (/보안문자/.test(e.message)) throw e; }
-  const res = await fetch(`https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=${atch}&fileDetailSn=${sn}&dataNm=en`, { headers: UA });
-  if (!res.ok) throw new Error('CSV 다운로드 실패 ' + res.status);
+  const res = await fetch(`https://www.data.go.kr/cmm/cmm/fileDownload.do?atchFileId=${atch}&fileDetailSn=${sn}&dataNm=d`, { headers: UA });
+  if (!res.ok) throw new Error(`${pk}: CSV 다운로드 실패 ` + res.status);
   const buf = new Uint8Array(await res.arrayBuffer());
-  let text = new TextDecoder('euc-kr').decode(buf);       // 이 파일은 EUC-KR
-  if (/�/.test(text.slice(0, 2000))) text = new TextDecoder('utf-8').decode(buf);
-  const rows = enRowsFromCsv(text);
-  console.log(`영문 CSV ${buf.length}바이트, ${rows.length}행. 앞부분:`, JSON.stringify(text.slice(0, 300)));
-  console.log('예시 행:', JSON.stringify(rows.slice(0, 3)));
+  let text = new TextDecoder('euc-kr').decode(buf);       // 이 기관 파일은 EUC-KR인 경우가 많음
+  if (/\uFFFD/.test(text.slice(0, 2000))) text = new TextDecoder('utf-8').decode(buf);
+  console.log(`${pk}: ${buf.length}바이트`);
+  return text;
+}
+
+// 영문 공연정보 CSV
+async function fetchEnglishCsv() {
+  const rows = enRowsFromCsv(await downloadFileData(EN_PK));
+  console.log(`영문 공연정보 ${rows.length}행. 예시:`, JSON.stringify(rows.slice(0, 2)));
   return rows;
+}
+
+// ---------- 주차장 혼잡도 정보 (한국체육산업개발, 파일데이터 15164156) ----------
+// 칸: 일련번호, 주차장아이디, 주차구역, 혼잡도(원활·혼잡·만차), 등록일, 등록시간
+// 등록시간의 분·초가 날짜의 월·일과 같게 찍혀 있어 시간대는 쓰지 않고 '날짜' 단위로만 셈
+export function parkingStats(text) {
+  const rows = parseCsv(text.replace(/^\uFEFF/, '')), head = rows[0].map(h => h.trim());
+  const iz = head.findIndex(h => /주차구역/.test(h)), il = head.findIndex(h => /혼잡도/.test(h)), id = head.findIndex(h => /등록일/.test(h));
+  const days = {}, zones = {};
+  for (const r of rows.slice(1)) {
+    const d = (r[id] || '').trim(), lv = (r[il] || '').trim(), z = (r[iz] || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !lv) continue;
+    const rank = lv === '만차' ? 2 : lv === '혼잡' ? 1 : 0;
+    days[d] = Math.max(days[d] ?? 0, rank);
+    if (z) { zones[z] ??= { n: 0, full: 0 }; zones[z].n++; if (rank === 2) zones[z].full++; }
+  }
+  const ds = Object.keys(days).sort(), vals = Object.values(days);
+  return { pk: '15164156', days: ds.length, full: vals.filter(v => v === 2).length, busy: vals.filter(v => v === 1).length,
+    from: ds[0], to: ds[ds.length - 1], zones };
+}
+async function fetchParking() {
+  const p = parkingStats(await downloadFileData('15164156'));
+  if (p.days < 10) throw new Error('주차 혼잡도 기록이 너무 적음');
+  console.log(`주차 혼잡도: ${p.days}일 중 만차 ${p.full}일, 혼잡 ${p.busy}일 (${p.from}~${p.to})`);
+  return p;
 }
 
 // ---------- 국문 공연정보 API ----------
@@ -126,11 +156,14 @@ async function main() {
   const rentNew = rent.filter(r => !seen.has(r.title.replace(/\s+/g, '').toUpperCase()));
   const out = buildEvents(en, [...ko, ...rentNew], { since: '2025-01-01' });
   out.totalRent = rent.length;
+  // 주차 혼잡도는 실패해도 공연 목록 갱신은 계속(지난 값 유지)
+  const prevAll = JSON.parse(await readFile(OUT, 'utf8').catch(() => '{}'));
+  try { out.parking = await fetchParking(); } catch (e) { console.log('::warning::주차 혼잡도 건너뜀: ' + e.message); if (prevAll.parking) out.parking = prevAll.parking; }
   if (out.events.length < 20) throw new Error(`공연이 ${out.events.length}개뿐 — 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const histTotal = Object.values(out.history).reduce((a, b) => a + b, 0);
   if (histTotal < (ko.length) * 0.5) throw new Error(`공연장 기록이 ${histTotal}건뿐 — 국문 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const prev = JSON.parse(await readFile(OUT, 'utf8').catch(() => '{}'));
-  const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID, rent: '15015212' }, ...out };
+  const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID, rent: '15015212', parking: '15164156' }, ...out };
   const same = JSON.stringify({ ...prev, generated: 0 }) === JSON.stringify({ ...next, generated: 0 });
   if (same) { console.log('변경 없음'); return; }
   await writeFile(OUT, JSON.stringify(next));

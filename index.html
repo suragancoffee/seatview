@@ -41,6 +41,7 @@
   .ev{border:1px solid var(--line);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:5px;background:#fff}
   .ev .top{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted)}
   .ev .ttl{font-size:13px;font-weight:700;line-height:1.35;color:var(--ink)}
+  .vhist.park{margin-top:2px;line-height:1.45}
   .ev .nof{font-size:11px;color:var(--muted)}
   .chip.hint1{border-color:var(--navy);border-style:dashed}
   .ev .row2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -143,6 +144,7 @@
       <button data-v="muse">뮤즈라이브 <em class="tag">2D</em><small>237석 · 3D 미개방</small></button>
     </div>
     <div class="vhist" id="venueHist"></div>
+      <div class="vhist park notr" id="parkTip"></div>
     </div>
 
     <!-- 우리금융아트홀 -->
@@ -823,7 +825,14 @@ function pickEvent(i, v){
 }
 $('evBack').onclick = () => { $('evBanner').style.display = 'none'; currentEvent = null; setMode('event'); };
 
+function showParking(){
+  const p = EVENTS?.parking; if (!p) { $('parkTip').textContent = ''; return; }
+  $('parkTip').textContent = I18N.lang === 'en'
+    ? `🚗 Park parking-lot congestion records: full on ${p.full} of ${p.days} days (busy on ${p.busy} more). Public transport recommended on show days — Olympic Park Stn (Line 5·9), Mongchontoseong Stn (Line 8).`
+    : `🚗 기관 주차장 혼잡도 기록 ${p.days}일 중 ${p.full}일 만차(혼잡 ${p.busy}일). 공연일엔 대중교통 권장 — 올림픽공원역(5·9호선), 몽촌토성역(8호선)`;
+}
 function showHistory(v){
+  showParking();
   const n = EVENTS?.history?.[v];
   $('venueHist').textContent = !n ? '' : I18N.lang === 'en'
     ? `${n.toLocaleString()} past shows in public performance & venue-rental data (to 2024)`
