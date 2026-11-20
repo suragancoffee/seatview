@@ -111,7 +111,10 @@
   .share button{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer}
   .share span{font-size:12px;color:var(--muted)}
   [hidden]{display:none!important}
-  @media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:52vh auto;height:auto} main{order:-1;height:52vh} aside{border-right:0} .hint{display:none} }
+  @media (max-width:860px){ .app{grid-template-columns:1fr;grid-template-rows:52vh auto;height:auto} main{order:-1;height:52vh} aside{border-right:0} .hint{display:none}
+    .row{height:14px} /* 손가락으로 열을 고를 수 있게 막대를 키움 */
+    /* 2D 좌석맵을 화면 너비 가득(좌석이 약 2배), 시야 스케치는 그 아래로 스크롤 */
+    #view2d{display:block} #view2d .mapwrap{padding:8px 4px 0} #view2d svg.seatmap{height:auto;max-height:none} }
 </style>
 </head>
 <body>
@@ -302,6 +305,24 @@ async function fetchVenue(v){
   return info;
 }
 
+// 휴대폰은 메모리가 작아 공연장 5곳(압축 50MB, 풀면 수백 MB)을 모두 들고 있으면 탭이 종료될 수 있음
+// → 화면이 좁거나 기기 메모리가 4GB 이하면 지금 보는 공연장 외의 3D 모델은 해제(다시 고르면 다시 받음)
+const LOW_MEM = matchMedia('(max-width:860px)').matches || (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4);
+function dropVenue(k){
+  const info = venues[k]; if (!info) return;
+  scene.remove(info.root);
+  info.root.traverse(o => {
+    o.geometry?.dispose();
+    for (const m of [].concat(o.material || [])) {
+      if (m === perfMat || m === headMat) continue;   // 출연자 재질은 공용
+      for (const key in m) if (m[key]?.isTexture) m[key].dispose();
+      m.dispose();
+    }
+  });
+  delete venues[k]; delete progress[k];
+}
+function dropOthers(keep){ if (LOW_MEM) for (const k of Object.keys(venues)) if (k !== keep) dropVenue(k); }
+
 // ---------------- 출연자·무대 소품 ----------------
 const perfMat = new THREE.MeshStandardMaterial({ color:0xf28c18, roughness:.6 });
 const headMat = new THREE.MeshStandardMaterial({ color:0xffd9b0, roughness:.7 });
@@ -447,9 +468,10 @@ function buildRing(){
 
 // ---------------- 티켓링크 라이브 아레나 UI ----------------
 for (const [k, m] of Object.entries(HB.MODES)) { const o = document.createElement('option'); o.value = k; o.textContent = m.label; $('hbMode').appendChild(o); }
-$('hbMode').onchange = () => { const s = state.hb; s.mode = $('hbMode').value;
-  if (s.mode === 'sports' && s.zone === 'floor') s.zone = 'LS'; if (s.mode === 'concert' && s.zone === 'LS') s.zone = 'floor';
-  buildHbRing(); buildExtras(); update(); };
+// 공연 형태에 없는 구역 보정: 콘서트엔 1층 남측(무대 자리)이 없고, 경기엔 플로어가 없음
+// (형태 전환·공연 선택·공유 링크 어느 경로로 와도 update()에서 한 번에 맞춤)
+function fixHbZone(s){ if (s.mode === 'sports' && s.zone === 'floor') s.zone = 'LS'; if (s.mode === 'concert' && s.zone === 'LS') s.zone = 'floor'; }
+$('hbMode').onchange = () => { state.hb.mode = $('hbMode').value; buildHbRing(); buildExtras(); update(); };
 document.querySelectorAll('#hbDepth button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#hbDepth button').forEach(x => x.classList.toggle('on', x === b)); state.hb.depth = b.dataset.d; update(); });
 function buildHbRing(){
@@ -500,7 +522,7 @@ function buildOutRing(){
 const TWO_D = { oh: TD.OH, muse: TD.MUSE_INFO };
 function build2d(){
   const v = state.venue, info = TWO_D[v], svg = $('seatmap'), ns = 'http://www.w3.org/2000/svg';
-  svg.setAttribute('viewBox', info.viewBox); svg.innerHTML = '';
+  svg.setAttribute('viewBox', info.viewBox); svg.innerHTML = ''; svg.onclick = null;
   const el = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
   if (v === 'oh') {
     el('rect', { x:620, y:478, width:442, height:86, rx:8, class:'st' }); el('text', { x:841, y:536, 'text-anchor':'middle', 'font-size':40, style:'fill:#fff' }, '무대');
@@ -531,6 +553,15 @@ function build2d(){
     for (const [lb, x] of [['가구역', 530], ['나구역', 1180], ['다구역', 1820]]) el('text', { x, y:540, 'text-anchor':'middle', 'font-size':40, style:'fill:#d22' }, lb);
     for (const [lb, y] of [['A',616],['B',675],['1',828],['2',887],['3',945],['4',1004],['5',1062],['6',1121],['7',1180]]) el('text', { x:680, y:y + 12, 'text-anchor':'middle', 'font-size':30, style:'fill:#d22' }, lb + '열');
     el('text', { x:1176, y:1270, 'text-anchor':'middle', 'font-size':30, style:'fill:#6b7487' }, '점선 좌석은 A·B열 간이석(가변형)');
+    // 휴대폰에선 좌석 하나가 몇 px밖에 안 돼서, 좌석 사이를 눌러도 가장 가까운 좌석을 고름
+    svg.onclick = e => {
+      if (e.target.closest('.seat')) return;
+      const m = svg.getScreenCTM(); if (!m) return;
+      const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+      let best = null, bd = Infinity;
+      for (const st of TD.MUSE_SEATS) { const d = Math.hypot(st.cx - q.x, st.cy - q.y); if (d < bd) { bd = d; best = st; } }
+      if (best && bd < 90) { state.muse.seat = best.id; update(); }
+    };
   }
 }
 $('row2d').oninput = () => { state.oh.row = +$('row2d').value; update(); };
@@ -602,7 +633,7 @@ function update(instant){
     const zl = o.zones.find(z => z.id === s.zone);
     rec = zl.eye < 1 ? '피크닉·여유로운 관람' : zl.eye < 1.3 ? (s.depth === 'front' ? '무대 근거리 착석' : '편안한 착석 관람') : '자유로운 스탠딩';
   } else if (state.venue === 'hb') {
-    const s = state.hb;
+    const s = state.hb; fixHbZone(s);
     document.querySelectorAll('#hbRing path.z').forEach(p => p.classList.toggle('sel', p.dataset.zone === s.zone));
     $('hbFloor')?.classList.toggle('sel', s.zone === 'floor');
     eye = new THREE.Vector3(...(s.zone === 'floor' ? HB.floorEye(s.depth) : HB.seatEye(s.zone, s.depth)));
@@ -731,19 +762,22 @@ async function switchVenue(v){
   $('ui-woori').hidden = v !== 'woori'; $('ui-kspo').hidden = v !== 'kspo'; $('ui-hb').hidden = v !== 'hb'; $('ui-out').hidden = !OUTDOOR[v];
   for (const [k, info] of Object.entries(venues)) info.root.visible = false;
   stageInfo = null;
-  if (is2d) { $('loading').classList.add('hide'); build2d(); update2d(); return; }
+  if (is2d) { dropOthers(null); $('loading').classList.add('hide'); build2d(); update2d(); return; }
   showLoading(v);
   const info = await loadVenue(v);
+  if (state.venue !== v) { dropOthers(state.venue); return; } // 그사이 다른 공연장을 골랐으면 화면을 건드리지 않음
+  dropOthers(v);
   if (!info.root.parent) scene.add(info.root);
-  if (state.venue !== v) return; // 그사이 다른 공연장을 골랐으면 화면을 건드리지 않음
   $('loading').classList.add('hide');
   info.root.visible = true;
   scene.background = new THREE.Color(OUTDOOR[v] ? 0xa9cbe8 : 0x15181f);
   if (v === 'kspo') buildRing(); if (v === 'hb') buildHbRing(); if (OUTDOOR[v]) buildOutRing();
   buildExtras(); setFov(60); update(true);
 }
-document.querySelectorAll('#venues button').forEach(b => b.onclick = () => { if (b.dataset.v !== state.venue) switchVenue(b.dataset.v).catch(fail); });
-function fail(e){ $('loadMsg').textContent = '3D 모델을 불러오지 못했습니다.'; console.error(e); }
+// 같은 공연장 버튼은 무시하되, 모델 불러오기에 실패한 상태라면 다시 시도
+document.querySelectorAll('#venues button').forEach(b => b.onclick = () => { const v = b.dataset.v;
+  if (v !== state.venue || (!TWO_D[v] && !venues[v] && !loading[v])) switchVenue(v).catch(fail); });
+function fail(e){ $('loadMsg').textContent = '3D 모델을 불러오지 못했어요. 공연장 버튼을 다시 눌러 주세요.'; console.error(e); }
 
 // ---------------- 둘러보기 조작 ----------------
 let drag = null; const cv = renderer.domElement;
@@ -869,14 +903,16 @@ const VALID = { // 주소에 들어온 값이 실제로 있는 좌석인지 확�
   muse: s => TD.MUSE_SEATS.some(q => q.id === s.seat),
 };
 function readHash(){
-  const parts = decodeURIComponent(location.hash.slice(1)).split('&'), v = parts[0];
+  // 메신저 등에서 잘린 주소(%가 깨진 값)면 decodeURIComponent가 예외를 내 앱 전체가 멈추므로 기본 화면으로
+  let raw; try { raw = decodeURIComponent(location.hash.slice(1)); } catch (e) { return null; }
+  const parts = raw.split('&'), v = parts[0];
   if (!VENUE_KEYS.includes(v)) return null;
   const s = { ...DEFAULTS[v] }, view = {};
   for (const p of parts.slice(1)) {
     const i = p.indexOf('='); if (i < 0) continue;
     const k = p.slice(0, i), val = p.slice(i + 1);
     if (k === 'y' || k === 'p' || k === 'f') { if (isFinite(+val)) view[k] = +val; continue; }
-    if (!(k in s)) continue;
+    if (!Object.prototype.hasOwnProperty.call(s, k)) continue;   // constructor 같은 상속 속성 이름은 무시
     s[k] = /^\d+$/.test(val) && k !== 'seat' && k !== 'wc' ? +val : val;
   }
   if (!VALID[v](s)) return { v, view: {} };      // 잘못된 값이면 그 공연장 기본 좌석으로

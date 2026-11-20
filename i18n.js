@@ -27,6 +27,7 @@ const DICT = {
   '출연자가 보이는 크기': 'How big performers look', '선수가 보이는 크기': 'How big players look', '추천 대상': 'Good for',
   '무대에 출연자(키 175cm) 세워보기': 'Show performers (175 cm) on stage',
   '3D 공연장 불러오는 중…': 'Loading 3D venue…', '3D 모델을 불러오지 못했습니다.': 'Could not load the 3D model.',
+  '3D 모델을 불러오지 못했어요. 공연장 버튼을 다시 눌러 주세요.': 'Could not load the 3D model. Tap the venue button again to retry.',
   '시야 스케치': 'View sketch',
   '선택한 좌석 눈높이에서 본 무대를 간단한 원근도로 그렸어요. 주황색은 키 175cm 출연자예요. 거리·높이는 도면 기반 추정값이에요.':
     'A simple perspective of the stage from the selected seat. Orange figures are 175 cm performers. Distances and heights are estimates from floor plans.',
@@ -71,7 +72,7 @@ const DICT = {
   '이 무대 배치에서는 휠체어석이 무대 뒤쪽이에요. 예매처에 휠체어석 위치를 꼭 확인해 주세요.': 'With this stage layout the wheelchair spaces are behind the stage. Please check the location with the ticket seller.',
   '이 무대 배치에서는 휠체어석이 무대 측면이에요.': 'With this stage layout the wheelchair spaces are at the side of the stage.',
   '2층 남서측': '2F Southwest', '2층 남동측': '2F Southeast',
-  '열': 'Row', 'Floor 위치': 'Floor position',
+  '열': 'Row',
   '데이터: 한국체육산업개발(주) 「올림픽공원 공연장 실감형 콘텐츠」(공공데이터포털) · 각 공연장 좌석배치도.': 'Data: Korea Sports Promotion (KSPO) "Olympic Park venue immersive content" (data.go.kr) · venue seating charts.',
   '원본 3D 모델(우리금융아트홀 170MB, KSPO DOME 476MB, 티켓링크 라이브 아레나 79MB, 수변무대 25MB, 88잔디마당 11MB)을 웹용으로 경량화했습니다. 올림픽홀·뮤즈라이브는 3D 데이터가 공개되지 않아 좌석배치도·평면도 기반 2D 추정 모드로 제공합니다. 좌석 위치는 근사값이며 실제 시야와 다를 수 있습니다. 아레나형 공연장의 무대·스크린은 예시 배치이며, 티켓링크 라이브 아레나의 이동식 좌석과 무대는 대관 도면(인출 시 42.1×31.2m, 무대설치구간 30×18m)을 바탕으로 만들었습니다.': 'The original 3D models (Woori Financial Art Hall 170MB, KSPO DOME 476MB, Ticketlink Live Arena 79MB, Lakeside Stage 25MB, 88 Lawn 11MB) were optimized for the web. Olympic Hall and Muse Live have no public 3D data, so they use a 2D estimate based on seating charts and floor plans. Seat positions are approximate and may differ from the real view. Arena stages and screens are example layouts; Ticketlink Live Arena retractable seats and stage are built from the rental drawings (42.1×31.2m when extended, 30×18m stage area).',
   '공연 기록': 'past shows', '검색 결과가 없어요.': 'No shows found.',
@@ -88,7 +89,9 @@ const WORDS = [
   [/상단 산책로/g, 'Upper walkway'], [/잔디/g, 'Lawn'], [/북동측/g, 'Northeast'], [/남동측/g, 'Southeast'], [/남서측/g, 'Southwest'],
   [/북서측/g, 'Northwest'], [/북측/g, 'North'], [/동측/g, 'East'], [/남측/g, 'South'], [/서측/g, 'West'], [/중앙/g, 'Center'],
   [/남쪽/g, 'south'], [/북쪽/g, 'north'], [/동쪽/g, 'east'], [/서쪽/g, 'west'],
-  [/북동/g, 'NE'], [/남동/g, 'SE'], [/남서/g, 'SW'], [/북서/g, 'NW'], [/^북$/g, 'N'], [/^동$/g, 'E'], [/^남$/g, 'S'], [/^서$/g, 'W'],
+  [/북동/g, 'NE'], [/남동/g, 'SE'], [/남서/g, 'SW'], [/북서/g, 'NW'],
+  // 방위 한 글자: 단독('북') 또는 층 뒤('1F 북', 티켓링크 아레나 1층 라벨)
+  [/(^| )북$/g, '$1N'], [/(^| )동$/g, '$1E'], [/(^| )남$/g, '$1S'], [/(^| )서$/g, '$1W'],
   [/앞쪽/g, 'front'], [/가운데/g, 'middle'], [/뒤쪽/g, 'back'], [/맨 앞/g, 'very front'], [/맨 뒤/g, 'very back'],
   [/플로어/g, 'Floor'], [/\(간이석\)/g, '(temporary)'], [/\(1층\)/g, '(1F)'], [/\(2층\)/g, '(2F)'],
   [/Floor석\(스탠딩\)/g, 'Floor (standing)'], [/Zone 가/g, 'Zone Ga'], [/Zone 나/g, 'Zone Na'], [/Zone 다/g, 'Zone Da'],
