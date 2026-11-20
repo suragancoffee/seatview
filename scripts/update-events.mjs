@@ -126,9 +126,11 @@ async function fetchKorean(key) {
   for (let page = 1; page <= 60; page++) {
     const url = `https://api.kcisa.kr/openapi/service/rest/meta/KSCperf?serviceKey=${encodeURIComponent(key)}&numOfRows=100&pageNo=${page}`;
     const res = await fetch(url, { headers: UA });
-    if (!res.ok) throw new Error(`국문 공연정보 ${page}쪽 응답 ${res.status}`);
     const xml = await res.text();
     const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+    // 이 API는 정상 XML을 주면서도 HTTP 상태를 502 등으로 보내는 경우가 있어 상태보다 본문(item 유무)으로 판단
+    if (!res.ok && !items.length) throw new Error(`국문 공연정보 ${page}쪽 응답 ${res.status}: ` + redact(xml.slice(0, 200), key));
+    if (!res.ok && page === 1) console.log(`::notice::국문 공연정보 HTTP ${res.status}이지만 본문은 정상(${items.length}건)이라 계속`);
     if (page === 1 && !items.length) throw new Error('국문 공연정보 응답 없음: ' + redact(xml.slice(0, 200), key));
     for (const it of items) rows.push({ title: tag(it, 'title'), venue: tag(it, 'subjectKeyword'), spatial: tag(it, 'spatial'), temporalCoverage: tag(it, 'temporalCoverage') });
     total = +tag(xml, 'totalCount') || total;
