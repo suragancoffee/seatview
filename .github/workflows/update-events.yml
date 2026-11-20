@@ -11,6 +11,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # 데이터 서버가 응답 없이 멈춰도 6시간 동안 매달리지 않게
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

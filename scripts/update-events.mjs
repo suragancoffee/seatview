@@ -5,7 +5,12 @@
 // API 키는 코드에 넣지 않고 환경변수 KCISA_KEY(깃허브 Secret)로만 받습니다.
 // 어느 단계든 실패하면 기존 data/events.json 을 그대로 두고 종료합니다.
 import { readFile, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { buildEvents } from './match.mjs';
+
+// 응답 없이 멈추는 서버 대비: 요청마다 90초 제한(GitHub Actions 기본 제한은 6시간이라 그대로 두면 오래 매달림)
+const _fetch = globalThis.fetch;
+const fetch = (url, opt = {}) => _fetch(url, { signal: AbortSignal.timeout(90_000), ...opt });
 
 const OUT = new URL('../data/events.json', import.meta.url);
 const EN_PK = '15149169';
@@ -111,19 +116,26 @@ async function fetchParking() {
   return p;
 }
 
+// 오류 응답에 요청 주소(serviceKey 포함)가 그대로 찍혀 나오는 API가 있어, 공개 Actions 로그에 남기 전에 키를 가림
+const redact = (s, key) => !key ? s : String(s).split(key).join('***').split(encodeURIComponent(key)).join('***');
+
 // ---------- 국문 공연정보 API ----------
 const tag = (xml, t) => { const m = xml.match(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`)); return m ? m[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : ''; };
 async function fetchKorean(key) {
-  const rows = [];
+  const rows = []; let total = 0;
   for (let page = 1; page <= 60; page++) {
     const url = `https://api.kcisa.kr/openapi/service/rest/meta/KSCperf?serviceKey=${encodeURIComponent(key)}&numOfRows=100&pageNo=${page}`;
-    const xml = await (await fetch(url, { headers: UA })).text();
+    const res = await fetch(url, { headers: UA });
+    if (!res.ok) throw new Error(`국문 공연정보 ${page}쪽 응답 ${res.status}`);
+    const xml = await res.text();
     const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-    if (page === 1 && !items.length) throw new Error('국문 공연정보 응답 없음: ' + xml.slice(0, 200));
+    if (page === 1 && !items.length) throw new Error('국문 공연정보 응답 없음: ' + redact(xml.slice(0, 200), key));
     for (const it of items) rows.push({ title: tag(it, 'title'), venue: tag(it, 'subjectKeyword'), spatial: tag(it, 'spatial'), temporalCoverage: tag(it, 'temporalCoverage') });
-    const total = +tag(xml, 'totalCount') || 0;
+    total = +tag(xml, 'totalCount') || total;
     if (!items.length || rows.length >= total) break;
   }
+  // 중간 쪽에서 오류 응답(호출 한도 등)이 오면 items가 비어 조용히 멈추므로, 전체 건수와 비교해 덜 받았으면 실패 처리
+  if (total && rows.length < total * 0.95) throw new Error(`국문 공연정보를 ${rows.length}/${total}건만 받음 — 저장하지 않음`);
   console.log(`국문 공연정보 ${rows.length}건`);
   return rows;
 }
@@ -162,7 +174,9 @@ async function main() {
   if (out.events.length < 20) throw new Error(`공연이 ${out.events.length}개뿐 — 데이터 형식이 바뀐 것 같아 저장하지 않음`);
   const histTotal = Object.values(out.history).reduce((a, b) => a + b, 0);
   if (histTotal < (ko.length) * 0.5) throw new Error(`공연장 기록이 ${histTotal}건뿐 — 국문 데이터 형식이 바뀐 것 같아 저장하지 않음`);
-  const prev = JSON.parse(await readFile(OUT, 'utf8').catch(() => '{}'));
+  // 지난번보다 국문 기록이 절반 넘게 줄었으면(API가 일부만 내려준 경우 등) 저장하지 않음. 국문 데이터는 2024년까지라 줄어들 일이 거의 없음
+  if (prevAll.totalKo && ko.length < prevAll.totalKo * 0.5) throw new Error(`국문 기록이 ${prevAll.totalKo}건 → ${ko.length}건으로 크게 줄어 저장하지 않음`);
+  const prev = prevAll;
   const next = { generated: new Date().toISOString().slice(0, 10), sources: { en: EN_PK, ko: KO_ID, rent: '15015212', parking: '15164156' }, ...out };
   const same = JSON.stringify({ ...prev, generated: 0 }) === JSON.stringify({ ...next, generated: 0 });
   if (same) { console.log('변경 없음'); return; }
@@ -171,8 +185,10 @@ async function main() {
   console.log(`저장: 공연 ${out.events.length}개 (공연명 확인 ${c('title')}, 지난 공연 추정 ${c('history')}, 미확인 ${c(null)}), 국문 기록 ${out.totalKo}건`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main().catch(e => {
+// 직접 실행했을 때만 main() — 경로에 공백·한글이 있으면 file:// 문자열 비교가 어긋나 아무것도 안 하고 끝나므로 pathToFileURL로 비교
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(e => {
   // 실패해도 기존 data/events.json 은 그대로 — 보안문자 요구는 경고만, 그 밖의 오류는 실패로 표시해 알림을 받음
-  if (/보안문자/.test(e.message)) { console.log('::warning::' + e.message); return; }
-  console.error('갱신 실패:', e.message); process.exit(1);
+  const msg = redact(redact(e.message, process.env.KCISA_KEY), process.env.KCISA_RENT_KEY);
+  if (/보안문자/.test(msg)) { console.log('::warning::' + msg); return; }
+  console.error('갱신 실패:', msg); process.exit(1);
 });
