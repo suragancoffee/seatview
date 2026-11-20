@@ -25,8 +25,8 @@ jobs:
       - name: 바뀐 내용이 있으면 커밋
         run: |
           if git diff --quiet data/events.json; then echo "변경 없음"; exit 0; fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "suragancoffee"
+          git config user.email "suragancoffee@users.noreply.github.com"
           git add data/events.json
           git commit -m "공연 목록 자동 갱신 ($(date +%Y-%m-%d))"
           git push
